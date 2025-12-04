@@ -1,0 +1,1295 @@
+<!DOCTYPE html>
+<!-- 
+    ZZZ Optimal Distribution Calculator
+    Copyright (c) 2025 Jasvino. All Rights Reserved.
+-->
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ZZZ Optimal Distribution Calculator</title>
+    <style>
+        :root {
+            --bg-color: #1a1a1d;
+            --card-bg: #2d2d32;
+            --input-bg: #111;
+            --accent: #ff6600;
+            --accent-hover: #ff8533;
+            --text-main: #eeeeee;
+            --text-muted: #aaaaaa;
+            --border: #444;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .container {
+            max-width: 1500px;
+            width: 100%;
+            display: grid;
+            /* Layout: Agent Config | Results | Enemy & Optimizer */
+            grid-template-columns: 360px 1fr 360px; 
+            gap: 20px;
+        }
+
+        /* Responsive Layouts */
+        @media (max-width: 1200px) {
+            /* Move results to bottom on medium screens */
+            .container { grid-template-columns: 1fr 1fr; }
+            .results-column { grid-column: 1 / -1; grid-row: 2; }
+        }
+
+        @media (max-width: 768px) {
+            .container { grid-template-columns: 1fr; }
+            .results-column { grid-column: auto; grid-row: auto; }
+        }
+
+        .card {
+            background-color: var(--card-bg);
+            border-radius: 8px;
+            padding: 20px;
+            border: 1px solid var(--border);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            height: fit-content;
+        }
+
+        .right-stack {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        h1, h2, h3 { margin-top: 0; color: var(--accent); }
+        h1 { grid-column: 1 / -1; text-align: center; margin-bottom: 20px; font-size: 2rem; letter-spacing: 1px; text-transform: uppercase;}
+        h2 { font-size: 1.2rem; border-bottom: 1px solid var(--border); padding-bottom: 10px; margin-bottom: 15px; }
+        h3 { font-size: 0.85rem; color: #ccc; text-transform: uppercase; letter-spacing: 1px; margin-top: 20px; background: rgba(255,255,255,0.05); padding: 5px; border-radius: 4px;}
+        
+        /* Remove margin top for h3 if it's the first child */
+        .card > h3:first-of-type { margin-top: 0; }
+        .input-group { margin-bottom: 0; }
+
+        label {
+            display: block;
+            font-size: 0.85em;
+            color: var(--text-muted);
+            margin-bottom: 4px;
+        }
+
+        input, select {
+            width: 100%;
+            background-color: var(--input-bg);
+            border: 1px solid var(--border);
+            color: white;
+            padding: 8px 10px;
+            border-radius: 4px;
+            font-size: 0.95em;
+            box-sizing: border-box;
+            transition: border 0.2s;
+            font-family: 'Consolas', 'Monaco', monospace; 
+        }
+        input:focus, select:focus { border-color: var(--accent); outline: none; }
+
+        .stat-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+        .hidden { display: none !important; }
+
+        .btn {
+            background-color: var(--accent);
+            color: white;
+            border: none;
+            padding: 16px;
+            font-size: 1.1em;
+            font-weight: bold;
+            cursor: pointer;
+            border-radius: 4px;
+            width: 100%;
+            margin-top: 20px;
+            text-transform: uppercase;
+            transition: background 0.2s;
+        }
+        .btn:hover { background-color: var(--accent-hover); }
+
+        /* Results Styling */
+        .results-header {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background: #222;
+            padding: 15px;
+            border-radius: 4px;
+            text-align: center;
+            border-top: 3px solid var(--accent);
+        }
+        .stat-card.avg { border-color: #ffd700; background: #2a2a22; }
+        .stat-card small { display: block; color: var(--text-muted); font-size: 0.8em; margin-bottom: 5px; }
+        .stat-card strong { font-size: 1.4em; display: block; }
+        
+        .stats-comparison {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .agent-stats {
+            background: #222;
+            padding: 15px;
+            border-radius: 4px;
+            font-size: 0.9em;
+        }
+        .agent-stats h4 { margin: 0 0 10px 0; color: #fff; border-bottom: 1px solid #444; padding-bottom: 5px; text-align: center; }
+        .agent-stat-row { display: flex; justify-content: space-between; border-bottom: 1px solid #333; padding: 4px 0; }
+        .agent-stat-row:last-child { border-bottom: none; }
+        .val-col { color: var(--accent); font-weight: bold; }
+
+        .disc-layout {
+            display: flex;
+            gap: 15px;
+            justify-content: space-around;
+            margin: 20px 0;
+        }
+        .disc {
+            background: #111;
+            border: 2px solid #444;
+            border-radius: 50%;
+            width: 90px;
+            height: 90px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            font-size: 0.8em;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.5);
+            position: relative;
+        }
+        .disc span { color: var(--accent); font-weight: bold; font-size: 1.1em; }
+        .disc label { margin:0; font-size: 0.75em; color: #888; }
+        .disc-num { position: absolute; top: -5px; left: -5px; background: #333; color: white; border-radius: 50%; width: 20px; height: 20px; font-size: 0.8em; line-height: 20px;}
+
+        .substat-bars { margin-top: 20px; }
+        .bar-row { display: flex; align-items: center; margin-bottom: 8px; font-size: 0.9em; }
+        .bar-label { width: 130px; color: #ddd; }
+        .bar-track { flex-grow: 1; background: #333; height: 8px; border-radius: 4px; margin: 0 10px; overflow: hidden; }
+        .bar-fill { height: 100%; background: var(--accent); }
+        .bar-val { width: 40px; text-align: right; color: #aaa; }
+
+        .notice { font-size: 0.8em; color: #666; margin-top: 5px; line-height: 1.3; font-style: italic; }
+    </style>
+</head>
+
+<body>
+<div class="container">
+    <h1 style="grid-column: 1 / -1;">ZZZ Optimal Distribution Calculator</h1>
+
+    <!-- COLUMN 1: Agent Configuration -->
+    <div class="card">
+        <h2>Agent Configuration</h2>
+        <div class="notice">Math inputs allowed (e.g. "800 + 150")</div>
+
+        <h3>Base Stats</h3>
+        <div class="input-group" style="margin-bottom: 12px;">
+            <label>Damage Scaling Type</label>
+            <select id="scalingType" onchange="updateUI()">
+                <option value="Attack">Attack</option>
+                <option value="HP">HP</option>
+                <option value="Defence">Defence</option>
+                <option value="Rupture">Rupture</option>
+            </select>
+        </div>
+        <div class="stat-row" style="grid-template-columns: 1fr 1fr 1fr;">
+            <div class="input-group">
+                <label>Level</label>
+                <input type="text" id="charLevel" value="60">
+            </div>
+            <div class="input-group">
+                <label>Base HP</label>
+                <input type="text" id="baseHp" value="0">
+            </div>
+            <div class="input-group">
+                <label>Base Def</label>
+                <input type="text" id="baseDefence" value="0">
+            </div>
+        </div>
+        <div class="input-group" style="margin-bottom: 12px;">
+            <label>Base Attack (Char + Engine)</label>
+            <input type="text" id="baseAttack" value="0">
+        </div>
+
+        <h3>Additional Stats</h3>
+        <div class="notice">Menu/Sheet stats from Core, Disc 2pc, etc.</div>
+        
+        <!-- Stats Rows - Visibility controlled by JS -->
+        <div id="row-atk" class="stat-row">
+            <div class="input-group">
+                <label>Attack %</label>
+                <input type="text" id="extAtkPct" value="0">
+            </div>
+            <div class="input-group">
+                <label>Flat Attack</label>
+                <input type="text" id="extFlatAtk" value="0">
+            </div>
+        </div>
+
+        <div id="row-hp" class="stat-row">
+            <div class="input-group">
+                <label>HP %</label>
+                <input type="text" id="extHpPct" value="0">
+            </div>
+            <div class="input-group">
+                <label>Flat HP</label>
+                <input type="text" id="extFlatHp" value="0">
+            </div>
+        </div>
+
+        <div id="row-def" class="stat-row">
+            <div class="input-group">
+                <label>DEF %</label>
+                <input type="text" id="extDefPct" value="0">
+            </div>
+            <div class="input-group">
+                <label>Flat DEF</label>
+                <input type="text" id="extFlatDef" value="0">
+            </div>
+        </div>
+
+        <div id="row-crit" class="stat-row">
+            <div class="input-group">
+                <label>Crit Rate %</label>
+                <input type="text" id="baseCritRate" value="5">
+            </div>
+            <div class="input-group">
+                <label>Crit DMG %</label>
+                <input type="text" id="baseCritDmg" value="50">
+            </div>
+        </div>
+
+        <div id="row-misc" class="stat-row">
+            <div class="input-group">
+                <label>DMG Bonus %</label>
+                <input type="text" id="extDmgBonus" value="0">
+            </div>
+            <div class="input-group">
+                <label>Skill Multiplier (%)</label>
+                <input type="text" id="skillMultiplier" value="100">
+            </div>
+        </div>
+
+        <div id="row-pen" class="stat-row">
+            <div class="input-group">
+                <label>PEN Ratio %</label>
+                <input type="text" id="basePenRatio" value="0">
+            </div>
+            <div class="input-group">
+                <label>Flat PEN</label>
+                <input type="text" id="basePen" value="0">
+            </div>
+        </div>
+
+        <h3>In-Combat Buffs</h3>
+        <div class="notice">Multiplies Menu Stats. Flat adds to end.</div>
+        <div class="stat-row">
+            <div class="input-group">
+                <label>Combat Atk Buff %</label>
+                <input type="text" id="combatAtkPct" value="0">
+            </div>
+            <div class="input-group">
+                <label>Combat Flat Atk</label>
+                <input type="text" id="combatFlatAtk" value="0">
+            </div>
+        </div>
+        <!-- ADDED HP COMBAT FIELDS -->
+        <div class="stat-row">
+            <div class="input-group">
+                <label>Combat HP Buff %</label>
+                <input type="text" id="combatHpPct" value="0">
+            </div>
+            <div class="input-group">
+                <label>Combat Flat HP</label>
+                <input type="text" id="combatFlatHp" value="0">
+            </div>
+        </div>
+        <!-- END ADDED FIELDS -->
+        <div class="stat-row">
+            <div class="input-group">
+                <label>Sheer Force (Flat)</label>
+                <input type="text" id="combatSheerForce" value="0">
+            </div>
+            <div class="input-group">
+                <label>Sheer DMG %</label>
+                <input type="text" id="combatSheerDmg" value="0">
+            </div>
+        </div>
+    </div>
+
+    <!-- COLUMN 2: Results -->
+    <div class="card results-column">
+        <h2>Optimization Results</h2>
+        <div id="loading" style="display:none; padding:20px; text-align:center;">
+            Running optimizer...
+        </div>
+        
+        <div id="output" style="display:none;">
+            <!-- Damage Numbers -->
+            <div class="results-header">
+                <div class="stat-card">
+                    <small>Normal Hit</small>
+                    <strong id="resNormalDmg">0</strong>
+                </div>
+                <div class="stat-card">
+                    <small>Crit Hit</small>
+                    <strong id="resCritDmg">0</strong>
+                </div>
+                <div class="stat-card avg">
+                    <small>Average Damage</small>
+                    <strong id="resAvgDmg" style="color: #ffd700;">0</strong>
+                </div>
+            </div>
+
+            <!-- Stats Table Comparison -->
+            <div class="stats-comparison">
+                <div class="agent-stats">
+                    <h4>Menu Stats</h4>
+                    <div id="menuStatsBody"></div>
+                </div>
+                <div class="agent-stats">
+                    <h4>Total Combat Stats</h4>
+                    <div id="combatStatsBody"></div>
+                </div>
+            </div>
+
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                <!-- Disc Recommendations -->
+                <div>
+                    <h3>Recommended Main Stats</h3>
+                    <div class="disc-layout">
+                        <div class="disc">
+                            <div class="disc-num">4</div>
+                            <span id="slot4Rec">?</span>
+                            <label>Slot IV</label>
+                        </div>
+                        <div class="disc">
+                            <div class="disc-num">5</div>
+                            <span id="slot5Rec">?</span>
+                            <label>Slot V</label>
+                        </div>
+                        <div class="disc">
+                            <div class="disc-num">6</div>
+                            <span id="slot6Rec">?</span>
+                            <label>Slot VI</label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Substat Priority -->
+                <div>
+                    <h3>Substat Priority</h3>
+                    <div id="substatBars" class="substat-bars"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- COLUMN 3: Enemy + Optimizer (Right Stack) -->
+    <div class="right-stack">
+        <!-- Enemy Settings -->
+        <div class="card">
+            <h2>Enemy Settings</h2>
+            <div class="stat-row">
+                <div class="input-group">
+                    <label>Enemy Def</label>
+                    <input type="text" id="enemyDef" value="953">
+                </div>
+                <div class="input-group">
+                    <label>Def Reduction/Ignore (%)</label>
+                    <input type="text" id="defReduction" value="0">
+                </div>
+            </div>
+            <div class="stat-row">
+                <div class="input-group">
+                    <label>Enemy Res (%)</label>
+                    <input type="text" id="enemyRes" value="0">
+                </div>
+                 <div class="input-group">
+                    <label>Damage Taken (%)</label>
+                    <input type="text" id="dmgTaken" value="0">
+                </div>
+            </div>
+            <div class="stat-row">
+                <div class="input-group">
+                    <label>Stun Multiplier (%)</label>
+                    <input type="text" id="stunMult" value="100">
+                </div>
+            </div>
+        </div>
+
+        <!-- Optimizer Settings -->
+        <div class="card">
+            <h2>Optimizer Settings</h2>
+            <div class="input-group">
+                <label>Substat Budget</label>
+                <select id="startLines">
+                    <option value="4" selected>Standard (Start 3 Lines - 48 Rolls)</option>
+                    <option value="5">Endgame (Start 4 Lines - 54 Rolls)</option>
+                </select>
+            </div>
+            
+            <button class="btn" onclick="optimize()">Calculate</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // --- 1. WORKER CODE BLOCK --- Prevents browser from freezing while optimizer is running in the background
+    // This string contains the logic that runs on the background thread.
+    const workerCode = `
+    const ROLLS = {
+        HP: 3, FlatHP: 112, Attack: 3, FlatAttack: 19,
+        Defence: 4.8, FlatDefence: 15, CritRate: 2.4, CritDamage: 4.8,
+        AnomalyProficiency: 9, PEN: 9
+    };
+
+    const MAINS = {
+        FlatHP: 2200, FlatAttack: 316, FlatDefence: 184,
+        HP: 30, Attack: 30, Defence: 48,
+        CritRate: 24, CritDamage: 48, AnomalyProficiency: 92,
+        PENRatio: 24, DamageBonus: 30, AnomalyMastery: 30,
+        Impact: 18, EnergyRegen: 60, None: 0
+    };
+
+    const MS = {
+        HP:'HP', FlatHP:'FlatHP', Attack:'Attack', FlatAttack:'FlatAttack',
+        Defence:'Defence', FlatDefence:'FlatDefence',
+        CritRate:'CritRate', CritDamage:'CritDamage', AnomalyProficiency:'AnomalyProficiency',
+        PENRatio:'PENRatio', DamageBonus:'DamageBonus', AnomalyMastery:'AnomalyMastery',
+        Impact:'Impact', EnergyRegen:'EnergyRegen', None:'None'
+    };
+    
+    // Using Integer IDs for Subs to avoid String Comparisons in hot loop
+    const S_ID = {
+        None: 0, HP: 1, FlatHP: 2, Attack: 3, FlatAttack: 4,
+        Defence: 5, FlatDefence: 6, CritRate: 7, CritDamage: 8,
+        AnomalyProficiency: 9, PEN: 10
+    };
+    const S_KEYS = Object.keys(S_ID);
+
+    class Disc {
+        constructor(main, s1, s2, s3, s4) {
+            this.main = main;
+            this.sub1 = s1; this.sub2 = s2; this.sub3 = s3; this.sub4 = s4;
+        }
+    }
+
+    // --- ZERO-ALLOCATION MATH FUNCTIONS ---
+
+    // Pre-calculate constants to avoid math in the hot loop
+    function getMaxDamageFast(set, p, addRolls) {
+        // 1. Setup Base Stats from Player + Disc Mains
+        // We use local variables for speed.
+        let hpPct = p.hpPct, flatHp = p.flatHp;
+        let atkPct = p.atkPct, flatAtk = p.flatAttack;
+        let defPct = p.defPct, flatDef = p.flatDefence;
+        let cr = p.critRate, cd = p.critDamage;
+        let pen = p.pen, penRatio = p.penRatio, ap = p.anomalyProficiency;
+        let dmgBonus = p.damageBonus;
+
+        // Apply Disc Mains
+        for(let i=0; i<6; i++) {
+            let m = set[i].main;
+            if(m === MS.HP) hpPct += MAINS.HP;
+            else if(m === MS.FlatHP) flatHp += MAINS.FlatHP;
+            else if(m === MS.Attack) atkPct += MAINS.Attack;
+            else if(m === MS.FlatAttack) flatAtk += MAINS.FlatAttack;
+            else if(m === MS.Defence) defPct += MAINS.Defence;
+            else if(m === MS.FlatDefence) flatDef += MAINS.FlatDefence;
+            else if(m === MS.CritRate) cr += MAINS.CritRate;
+            else if(m === MS.CritDamage) cd += MAINS.CritDamage;
+            else if(m === MS.PENRatio) penRatio += MAINS.PENRatio;
+            else if(m === MS.DamageBonus) dmgBonus += MAINS.DamageBonus;
+            else if(m === MS.AnomalyProficiency) ap += MAINS.AnomalyProficiency;
+            else if(m === MS.PEN) pen += 9;
+        }
+
+        // 2. Setup Limits based on Disc Subs
+        // Array indexed by S_ID. 0 is None.
+        let limits = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+        // Pre-fill initial Substat Values (1 roll)
+        for(let i=0; i<6; i++) {
+            let d = set[i];
+            if(d.sub1) { limits[d.sub1] += addRolls; }
+            if(d.sub2) { limits[d.sub2] += addRolls; }
+            if(d.sub3) { limits[d.sub3] += addRolls; }
+            if(d.sub4) { limits[d.sub4] += addRolls; }
+        }
+        
+        if(limits[S_ID.HP] > 0) hpPct += (limits[S_ID.HP]/addRolls) * ROLLS.HP; 
+        if(limits[S_ID.FlatHP] > 0) flatHp += (limits[S_ID.FlatHP]/addRolls) * ROLLS.FlatHP;
+        if(limits[S_ID.Attack] > 0) atkPct += (limits[S_ID.Attack]/addRolls) * ROLLS.Attack;
+        if(limits[S_ID.FlatAttack] > 0) flatAtk += (limits[S_ID.FlatAttack]/addRolls) * ROLLS.FlatAttack;
+        if(limits[S_ID.Defence] > 0) defPct += (limits[S_ID.Defence]/addRolls) * ROLLS.Defence;
+        if(limits[S_ID.FlatDefence] > 0) flatDef += (limits[S_ID.FlatDefence]/addRolls) * ROLLS.FlatDefence;
+        if(limits[S_ID.CritRate] > 0) cr += (limits[S_ID.CritRate]/addRolls) * ROLLS.CritRate;
+        if(limits[S_ID.CritDamage] > 0) cd += (limits[S_ID.CritDamage]/addRolls) * ROLLS.CritDamage;
+        if(limits[S_ID.PEN] > 0) pen += (limits[S_ID.PEN]/addRolls) * ROLLS.PEN;
+        if(limits[S_ID.AnomalyProficiency] > 0) ap += (limits[S_ID.AnomalyProficiency]/addRolls) * ROLLS.AnomalyProficiency;
+
+        // 3. Prepare Optimization Loop
+        // Pre-calc constants
+        const baseAtk = p.baseAttack;
+        const baseHpVal = p.baseHp;
+        const baseDefVal = p.baseDefence;
+        
+        const combatAtkBuff = p.combatAtkPct;
+        const combatFlatAtk = p.combatFlatAtk;
+        
+        // --- NEW HP BUFFS ---
+        const combatHpBuff = p.combatHpPct;
+        const combatFlatHp = p.combatFlatHp;
+        // --------------------
+
+        const sheerForce = p.sheerForce + p.combatSheerForce;
+        const sheerDmg = 1 + ((p.sheerDamage + p.combatSheerDmg) / 100);
+        
+        // Dmg Multipliers
+        const skillMult = p.skillMultiplier / 100;
+        const dmgTakenMult = 1 + (p.damageTaken / 100);
+        const stunMult = p.stunMultiplier / 100;
+        const resMult = 1 - (p.enemyRes / 100);
+        const constMult = skillMult * dmgTakenMult * stunMult * resMult; 
+        const constMultWithBonus = constMult * (1 + (dmgBonus/100));
+
+        // Def Constants
+        const lvl = 60;
+        const levelFactor = (0.155 * lvl * lvl) + (3.15 * lvl) + 46.7;
+        let ignore = p.defReduction; if(ignore>100) ignore=100;
+        const ignoreMult = (100 - ignore) / 100;
+        const enemyDefBase = p.enemyDef * ignoreMult;
+
+        // Identify Scaling to prune loop
+        const isAtk = p.scaling === 'Attack';
+        const isHp = p.scaling === 'HP';
+        const isDef = p.scaling === 'Defence';
+        const isRupture = p.scaling === 'Rupture';
+
+        // 4. Run Greedy Optimizer
+        const loops = addRolls * 6;
+        for(let i=0; i<loops; i++) {
+            let bestDmg = -1;
+            let bestId = 0;
+
+            // Current state vars
+            let c_atk = (baseAtk * (1 + atkPct/100)) + flatAtk;
+            let c_finalAtk = (c_atk * (1 + combatAtkBuff/100)) + combatFlatAtk;
+            
+            let c_hp = (baseHpVal * (1 + hpPct/100)) + flatHp;
+            let c_finalHp = (c_hp * (1 + combatHpBuff/100)) + combatFlatHp; // Apply Combat HP
+
+            let c_def = (baseDefVal * (1 + defPct/100)) + flatDef;
+
+            // Calculate Base Damage for Comparison
+            // (Inline simplified calc)
+            let base_nonCrit = 0;
+            if(isRupture) {
+                // Uses Final HP
+                let sF = (c_finalHp * 0.1) + (c_finalAtk * 0.3) + sheerForce;
+                base_nonCrit = sF * constMultWithBonus * sheerDmg;
+            } else {
+                let eDef = (enemyDefBase * (1 - penRatio/100)) - pen;
+                if(eDef < 0) eDef = 0;
+                let defMult = levelFactor / (eDef + levelFactor);
+                // Standard scaling uses Final HP if scaling type is HP
+                let baseVal = isAtk ? c_finalAtk : (isDef ? c_def : c_finalHp);
+                base_nonCrit = baseVal * constMultWithBonus * defMult;
+            }
+            let c_cr = cr > 100 ? 1 : (cr < 0 ? 0 : cr/100);
+            let currentDmg = ((c_cr * (1 + cd/100)) + (1 - c_cr)) * base_nonCrit;
+            
+            bestDmg = currentDmg;
+
+            // Try Rolls - Hardcoded checks to avoid arrays
+            // Crit Rate
+            if(limits[S_ID.CritRate] > 0) {
+                let next_cr = (cr + ROLLS.CritRate);
+                let n_cr = next_cr > 100 ? 1 : (next_cr < 0 ? 0 : next_cr/100);
+                let d = ((n_cr * (1 + cd/100)) + (1 - n_cr)) * base_nonCrit;
+                if(d > bestDmg) { bestDmg = d; bestId = S_ID.CritRate; }
+            }
+            // Crit Dmg
+            if(limits[S_ID.CritDamage] > 0) {
+                let next_cd = cd + ROLLS.CritDamage;
+                let d = ((c_cr * (1 + next_cd/100)) + (1 - c_cr)) * base_nonCrit;
+                if(d > bestDmg) { bestDmg = d; bestId = S_ID.CritDamage; }
+            }
+            // PEN
+            if(limits[S_ID.PEN] > 0 && !isRupture) { // Rupture doesn't use def/pen
+                let next_pen = pen + ROLLS.PEN;
+                let eDef = (enemyDefBase * (1 - penRatio/100)) - next_pen;
+                if(eDef < 0) eDef = 0;
+                let defMult = levelFactor / (eDef + levelFactor);
+                let baseVal = isAtk ? c_finalAtk : (isDef ? c_def : c_finalHp);
+                let bnc = baseVal * constMultWithBonus * defMult;
+                let d = ((c_cr * (1 + cd/100)) + (1 - c_cr)) * bnc;
+                if(d > bestDmg) { bestDmg = d; bestId = S_ID.PEN; }
+            }
+            // Atk
+            if((isAtk || isRupture) && limits[S_ID.Attack] > 0) {
+                let n_atk = (baseAtk * (1 + (atkPct+ROLLS.Attack)/100)) + flatAtk;
+                let n_final = (n_atk * (1 + combatAtkBuff/100)) + combatFlatAtk;
+                let bnc = 0;
+                if(isRupture) {
+                    let sF = (c_finalHp * 0.1) + (n_final * 0.3) + sheerForce;
+                    bnc = sF * constMultWithBonus * sheerDmg;
+                } else {
+                    let eDef = (enemyDefBase * (1 - penRatio/100)) - pen;
+                    if(eDef < 0) eDef = 0;
+                    let defMult = levelFactor / (eDef + levelFactor);
+                    bnc = n_final * constMultWithBonus * defMult;
+                }
+                let d = ((c_cr * (1 + cd/100)) + (1 - c_cr)) * bnc;
+                if(d > bestDmg) { bestDmg = d; bestId = S_ID.Attack; }
+            }
+            // Flat Atk
+            if((isAtk || isRupture) && limits[S_ID.FlatAttack] > 0) {
+                let n_atk = (baseAtk * (1 + atkPct/100)) + (flatAtk + ROLLS.FlatAttack);
+                let n_final = (n_atk * (1 + combatAtkBuff/100)) + combatFlatAtk;
+                let bnc = 0;
+                if(isRupture) {
+                    let sF = (c_finalHp * 0.1) + (n_final * 0.3) + sheerForce;
+                    bnc = sF * constMultWithBonus * sheerDmg;
+                } else {
+                    let eDef = (enemyDefBase * (1 - penRatio/100)) - pen;
+                    if(eDef < 0) eDef = 0;
+                    let defMult = levelFactor / (eDef + levelFactor);
+                    bnc = n_final * constMultWithBonus * defMult;
+                }
+                let d = ((c_cr * (1 + cd/100)) + (1 - c_cr)) * bnc;
+                if(d > bestDmg) { bestDmg = d; bestId = S_ID.FlatAttack; }
+            }
+            // HP
+            if((isHp || isRupture) && limits[S_ID.HP] > 0) {
+                let n_hp = (baseHpVal * (1 + (hpPct+ROLLS.HP)/100)) + flatHp;
+                let n_finalHp = (n_hp * (1 + combatHpBuff/100)) + combatFlatHp;
+
+                let bnc = 0;
+                if(isRupture) {
+                    let sF = (n_finalHp * 0.1) + (c_finalAtk * 0.3) + sheerForce;
+                    bnc = sF * constMultWithBonus * sheerDmg;
+                } else {
+                    let eDef = (enemyDefBase * (1 - penRatio/100)) - pen;
+                    if(eDef < 0) eDef = 0;
+                    let defMult = levelFactor / (eDef + levelFactor);
+                    bnc = n_finalHp * constMultWithBonus * defMult;
+                }
+                let d = ((c_cr * (1 + cd/100)) + (1 - c_cr)) * bnc;
+                if(d > bestDmg) { bestDmg = d; bestId = S_ID.HP; }
+            }
+            // Flat HP
+            if((isHp || isRupture) && limits[S_ID.FlatHP] > 0) {
+                 let n_hp = (baseHpVal * (1 + hpPct/100)) + (flatHp + ROLLS.FlatHP);
+                 let n_finalHp = (n_hp * (1 + combatHpBuff/100)) + combatFlatHp;
+
+                 let bnc = 0;
+                 if(isRupture) {
+                     let sF = (n_finalHp * 0.1) + (c_finalAtk * 0.3) + sheerForce;
+                     bnc = sF * constMultWithBonus * sheerDmg;
+                 } else {
+                     let eDef = (enemyDefBase * (1 - penRatio/100)) - pen;
+                     if(eDef < 0) eDef = 0;
+                     let defMult = levelFactor / (eDef + levelFactor);
+                     bnc = n_finalHp * constMultWithBonus * defMult;
+                 }
+                 let d = ((c_cr * (1 + cd/100)) + (1 - c_cr)) * bnc;
+                 if(d > bestDmg) { bestDmg = d; bestId = S_ID.FlatHP; }
+            }
+            // Def
+            if(isDef && limits[S_ID.Defence] > 0) {
+                let n_def = (baseDefVal * (1 + (defPct+ROLLS.Defence)/100)) + flatDef;
+                let eDef = (enemyDefBase * (1 - penRatio/100)) - pen;
+                if(eDef < 0) eDef = 0;
+                let defMult = levelFactor / (eDef + levelFactor);
+                let bnc = n_def * constMultWithBonus * defMult;
+                let d = ((c_cr * (1 + cd/100)) + (1 - c_cr)) * bnc;
+                if(d > bestDmg) { bestDmg = d; bestId = S_ID.Defence; }
+            }
+            // Flat Def
+             if(isDef && limits[S_ID.FlatDefence] > 0) {
+                let n_def = (baseDefVal * (1 + defPct/100)) + (flatDef + ROLLS.FlatDefence);
+                let eDef = (enemyDefBase * (1 - penRatio/100)) - pen;
+                if(eDef < 0) eDef = 0;
+                let defMult = levelFactor / (eDef + levelFactor);
+                let bnc = n_def * constMultWithBonus * defMult;
+                let d = ((c_cr * (1 + cd/100)) + (1 - c_cr)) * bnc;
+                if(d > bestDmg) { bestDmg = d; bestId = S_ID.FlatDefence; }
+            }
+
+            if(bestId === 0) break; // No improvement found
+
+            // Commit
+            if(bestId === S_ID.CritRate) cr += ROLLS.CritRate;
+            else if(bestId === S_ID.CritDamage) cd += ROLLS.CritDamage;
+            else if(bestId === S_ID.PEN) pen += ROLLS.PEN;
+            else if(bestId === S_ID.Attack) atkPct += ROLLS.Attack;
+            else if(bestId === S_ID.FlatAttack) flatAtk += ROLLS.FlatAttack;
+            else if(bestId === S_ID.HP) hpPct += ROLLS.HP;
+            else if(bestId === S_ID.FlatHP) flatHp += ROLLS.FlatHP;
+            else if(bestId === S_ID.Defence) defPct += ROLLS.Defence;
+            else if(bestId === S_ID.FlatDefence) flatDef += ROLLS.FlatDefence;
+
+            limits[bestId]--;
+        }
+
+        // Return Result Object constructed only once
+        return {
+            dmg: getMaxDmgFromComponents(p, hpPct, flatHp, atkPct, flatAtk, defPct, flatDef, cr, cd, pen, penRatio, dmgBonus, ap),
+            stats: { hpPct, flatHp, atkPct, flatAtk, defPct, flatDef, cr, cd, pen, penRatio, dmgBonus, ap }
+        };
+    }
+
+    function getMaxDmgFromComponents(p, hpPct, flatHp, atkPct, flatAtk, defPct, flatDef, cr, cd, pen, penRatio, dmgBonus, ap) {
+        let hp = (p.baseHp * (1 + hpPct/100)) + flatHp;
+        let atk = (p.baseAttack * (1 + atkPct/100)) + flatAtk;
+        let def = (p.baseDefence * (1 + defPct/100)) + flatDef;
+        
+        let totalAtk = (atk * (1 + p.combatAtkPct/100)) + p.combatFlatAtk;
+        let totalHp = (hp * (1 + p.combatHpPct/100)) + p.combatFlatHp; // COMBAT HP
+
+        let skillMult = p.skillMultiplier / 100;
+        let dmgBonusMult = 1 + (dmgBonus / 100);
+        let stunMult = p.stunMultiplier / 100;
+        let dmgTakenMult = 1 + (p.damageTaken / 100);
+        let resMult = 1 - (p.enemyRes / 100);
+
+        let nonCritDmg = 0;
+        if(p.scaling === 'Rupture') {
+            // Use totalHp
+            let sF = (totalHp * 0.1) + (totalAtk * 0.3) + p.sheerForce + p.combatSheerForce;
+            let rM = 1 + ((p.sheerDamage + p.combatSheerDmg)/100);
+            nonCritDmg = sF * skillMult * dmgBonusMult * resMult * dmgTakenMult * stunMult * rM;
+        } else {
+            let lvl = 60; 
+            let levelFactor = (0.155 * lvl * lvl) + (3.15 * lvl) + 46.7;
+            let ignore = p.defReduction; if(ignore > 100) ignore = 100;
+            let ignoreMult = (100 - ignore) / 100;
+            let eDef = (p.enemyDef * ignoreMult * (1 - penRatio/100)) - pen;
+            if (eDef < 0) eDef = 0;
+            let defMult = levelFactor / (eDef + levelFactor);
+            // Use totalHp if scaling is HP
+            let baseVal = (p.scaling === 'Attack') ? totalAtk : (p.scaling === 'Defence' ? def : totalHp);
+            nonCritDmg = baseVal * skillMult * dmgBonusMult * resMult * defMult * dmgTakenMult * stunMult;
+        }
+        let cRate = Math.min(Math.max(cr, 0), 100) / 100;
+        let cDmgMult = 1 + (cd / 100);
+        return ((cRate * cDmgMult) + (1 - cRate)) * nonCritDmg;
+    }
+
+    function SetSubStats(set, basePlayer, addRolls) {
+        // Reset
+        for(let d of set) { d.sub1=0; d.sub2=0; d.sub3=0; d.sub4=0; }
+        
+        // Dynamic Candidates Pruning: Check if adding a roll increases damage
+        let hpPct = basePlayer.hpPct, flatHp = basePlayer.flatHp;
+        let atkPct = basePlayer.atkPct, flatAtk = basePlayer.flatAttack;
+        let defPct = basePlayer.defPct, flatDef = basePlayer.flatDefence;
+        let cr = basePlayer.critRate, cd = basePlayer.critDamage;
+        let pen = basePlayer.pen, penRatio = basePlayer.penRatio, ap = basePlayer.anomalyProficiency;
+        let dmgBonus = basePlayer.damageBonus;
+
+        // Apply Disc Mains for baseline calc
+        for(let i=0; i<6; i++) {
+            let m = set[i].main;
+            if(m === MS.HP) hpPct += MAINS.HP;
+            else if(m === MS.FlatHP) flatHp += MAINS.FlatHP;
+            else if(m === MS.Attack) atkPct += MAINS.Attack;
+            else if(m === MS.FlatAttack) flatAtk += MAINS.FlatAttack;
+            else if(m === MS.Defence) defPct += MAINS.Defence;
+            else if(m === MS.FlatDefence) flatDef += MAINS.FlatDefence;
+            else if(m === MS.CritRate) cr += MAINS.CritRate;
+            else if(m === MS.CritDamage) cd += MAINS.CritDamage;
+            else if(m === MS.PENRatio) penRatio += MAINS.PENRatio;
+            else if(m === MS.DamageBonus) dmgBonus += MAINS.DamageBonus;
+            else if(m === MS.AnomalyProficiency) ap += MAINS.AnomalyProficiency;
+            else if(m === MS.PEN) pen += 9;
+        }
+
+        let baseDmg = getMaxDmgFromComponents(basePlayer, hpPct, flatHp, atkPct, flatAtk, defPct, flatDef, cr, cd, pen, penRatio, dmgBonus, ap);
+        let candidates = [];
+        
+        const allSubs = [
+            S_ID.CritRate, S_ID.CritDamage, S_ID.PEN,
+            S_ID.Attack, S_ID.FlatAttack,
+            S_ID.HP, S_ID.FlatHP,
+            S_ID.Defence, S_ID.FlatDefence,
+            S_ID.AnomalyProficiency
+        ];
+
+        for (let sId of allSubs) {
+            let t_hp=hpPct, t_fHp=flatHp, t_atk=atkPct, t_fAtk=flatAtk, t_def=defPct, t_fDef=flatDef;
+            let t_cr=cr, t_cd=cd, t_pen=pen, t_ap=ap;
+
+            if(sId === S_ID.HP) t_hp += ROLLS.HP;
+            else if(sId === S_ID.FlatHP) t_fHp += ROLLS.FlatHP;
+            else if(sId === S_ID.Attack) t_atk += ROLLS.Attack;
+            else if(sId === S_ID.FlatAttack) t_fAtk += ROLLS.FlatAttack;
+            else if(sId === S_ID.Defence) t_def += ROLLS.Defence;
+            else if(sId === S_ID.FlatDefence) t_fDef += ROLLS.FlatDefence;
+            else if(sId === S_ID.CritRate) t_cr += ROLLS.CritRate;
+            else if(sId === S_ID.CritDamage) t_cd += ROLLS.CritDamage;
+            else if(sId === S_ID.PEN) t_pen += ROLLS.PEN;
+            else if(sId === S_ID.AnomalyProficiency) t_ap += ROLLS.AnomalyProficiency;
+
+            // Compare against base
+            let d = getMaxDmgFromComponents(basePlayer, t_hp, t_fHp, t_atk, t_fAtk, t_def, t_fDef, t_cr, t_cd, t_pen, penRatio, dmgBonus, t_ap);
+            if(d > baseDmg) candidates.push(sId);
+        }
+
+        // Always fill to at least 4 for valid discs if list is short (though above covers most)
+        // Ensure standard stats are available if main stats block preferred ones
+        if(candidates.length < 4) candidates.push(S_ID.AnomalyProficiency); 
+
+        for(let i=0; i<6; i++) {
+            let disc = set[i];
+            // Filter: Sub cannot be same as Main
+            // Map main string to ID
+            let mId = 0;
+            if(disc.main === MS.HP) mId=S_ID.HP;
+            if(disc.main === MS.FlatHP) mId=S_ID.FlatHP;
+            if(disc.main === MS.Attack) mId=S_ID.Attack;
+            if(disc.main === MS.FlatAttack) mId=S_ID.FlatAttack;
+            if(disc.main === MS.Defence) mId=S_ID.Defence;
+            if(disc.main === MS.FlatDefence) mId=S_ID.FlatDefence;
+            if(disc.main === MS.CritRate) mId=S_ID.CritRate;
+            if(disc.main === MS.CritDamage) mId=S_ID.CritDamage;
+            if(disc.main === MS.PEN) mId=S_ID.PEN;
+
+            let discCands = candidates.filter(c => c !== mId);
+            
+            for(let slot=1; slot<=4; slot++) {
+                let bestSub = discCands[0];
+                let highestDmg = -1;
+                
+                // If we ran out of preferred candidates, fill with junk to ensure 4 lines
+                if(discCands.length === 0) {
+                     // Fill with harmless stat
+                     bestSub = S_ID.AnomalyProficiency; 
+                } else {
+                    for(let cand of discCands) {
+                        if(slot===1) disc.sub1 = cand;
+                        if(slot===2) disc.sub2 = cand;
+                        if(slot===3) disc.sub3 = cand;
+                        if(slot===4) disc.sub4 = cand;
+                        
+                        let res = getMaxDamageFast(set, basePlayer, addRolls);
+                        if(res.dmg > highestDmg) {
+                            highestDmg = res.dmg;
+                            bestSub = cand;
+                        }
+                    }
+                }
+                
+                if(slot===1) disc.sub1 = bestSub;
+                if(slot===2) disc.sub2 = bestSub;
+                if(slot===3) disc.sub3 = bestSub;
+                if(slot===4) disc.sub4 = bestSub;
+                
+                discCands = discCands.filter(c => c !== bestSub);
+            }
+        }
+        return set;
+    }
+
+    function SetMainStats(basePlayer, addRolls) {
+        // Init Discs
+        let set = [
+            new Disc(MS.FlatHP, 0,0,0,0),
+            new Disc(MS.FlatAttack, 0,0,0,0),
+            new Disc(MS.FlatDefence, 0,0,0,0),
+            new Disc(MS.None, 0,0,0,0),
+            new Disc(MS.None, 0,0,0,0),
+            new Disc(MS.None, 0,0,0,0)
+        ];
+
+        // Pruning Lists
+        let list4 = [MS.HP, MS.Attack, MS.Defence, MS.CritRate, MS.CritDamage, MS.AnomalyProficiency];
+        let list5 = [MS.HP, MS.Attack, MS.Defence, MS.PENRatio, MS.DamageBonus];
+        let list6 = [MS.HP, MS.Attack, MS.Defence, MS.AnomalyMastery, MS.Impact, MS.EnergyRegen];
+
+        // Initial check to prune Main Stats
+        // We set dummy subs to test Main Stats roughly
+        let baseDmg = getMaxDamageFast(set, basePlayer, addRolls).dmg;
+
+        const prune = (list, idx) => {
+            let keep = [];
+            let tempSet = [
+                new Disc(MS.FlatHP,0,0,0,0), new Disc(MS.FlatAttack,0,0,0,0), new Disc(MS.FlatDefence,0,0,0,0),
+                new Disc(MS.None,0,0,0,0), new Disc(MS.None,0,0,0,0), new Disc(MS.None,0,0,0,0)
+            ];
+            for(let m of list) {
+                tempSet[idx].main = m;
+                if(getMaxDamageFast(tempSet, basePlayer, addRolls).dmg >= baseDmg) keep.push(m);
+            }
+            return keep.length > 0 ? keep : list;
+        };
+        
+        list4 = prune(list4, 3);
+        list5 = prune(list5, 4);
+        list6 = prune(list6, 5);
+
+        let highestDmg = -1;
+        let finalSet = [];
+        let finalStats = null;
+
+        for(let m4 of list4) {
+            for(let m5 of list5) {
+                for(let m6 of list6) {
+                    set[3].main = m4;
+                    set[4].main = m5;
+                    set[5].main = m6;
+                    
+                    SetSubStats(set, basePlayer, addRolls);
+                    let res = getMaxDamageFast(set, basePlayer, addRolls);
+                    
+                    if(res.dmg > highestDmg) {
+                        highestDmg = res.dmg;
+                        // Clone set results
+                        finalSet = set.map(d => new Disc(d.main, d.sub1, d.sub2, d.sub3, d.sub4));
+                        finalStats = res.stats;
+                    }
+                }
+            }
+        }
+        return { set: finalSet, stats: finalStats };
+    }
+
+    // --- WORKER MESSAGE HANDLER ---
+    self.onmessage = function(e) {
+        const { player, startLines } = e.data;
+        const result = SetMainStats(player, startLines);
+        
+        if(!result || !result.stats) { self.postMessage(null); return; }
+
+        let fs = result.stats;
+        let set = result.set;
+        
+        let rolls = {
+            hpPct: Math.round((fs.hpPct - player.hpPct)/ROLLS.HP),
+            flatHp: Math.round((fs.flatHp - player.flatHp)/ROLLS.FlatHP),
+            atkPct: Math.round((fs.atkPct - player.atkPct)/ROLLS.Attack),
+            flatAtk: Math.round((fs.flatAtk - player.flatAttack)/ROLLS.FlatAttack),
+            defPct: Math.round((fs.defPct - player.defPct)/ROLLS.Defence),
+            flatDef: Math.round((fs.flatDef - player.flatDefence)/ROLLS.FlatDefence),
+            critRate: Math.round((fs.cr - player.critRate)/ROLLS.CritRate),
+            critDmg: Math.round((fs.cd - player.critDamage)/ROLLS.CritDamage),
+            pen: Math.round((fs.pen - player.pen)/ROLLS.PEN),
+            anomalyProf: Math.round((fs.ap - player.anomalyProficiency)/ROLLS.AnomalyProficiency)
+        };
+        
+        // Subtract Mains
+        for(let d of set) {
+            if(d.main === MS.HP) rolls.hpPct -= Math.round(MAINS.HP/ROLLS.HP);
+            if(d.main === MS.FlatHP) rolls.flatHp -= Math.round(MAINS.FlatHP/ROLLS.FlatHP);
+            if(d.main === MS.Attack) rolls.atkPct -= Math.round(MAINS.Attack/ROLLS.Attack);
+            if(d.main === MS.FlatAttack) rolls.flatAtk -= Math.round(MAINS.FlatAttack/ROLLS.FlatAttack);
+            if(d.main === MS.Defence) rolls.defPct -= Math.round(MAINS.Defence/ROLLS.Defence);
+            if(d.main === MS.FlatDefence) rolls.flatDef -= Math.round(MAINS.FlatDefence/ROLLS.FlatDefence);
+            if(d.main === MS.CritRate) rolls.critRate -= Math.round(MAINS.CritRate/ROLLS.CritRate);
+            if(d.main === MS.CritDamage) rolls.critDmg -= Math.round(MAINS.CritDamage/ROLLS.CritDamage);
+            if(d.main === MS.AnomalyProficiency) rolls.anomalyProf -= Math.round(MAINS.AnomalyProficiency/ROLLS.AnomalyProficiency);
+        }
+
+        // Get Final Components for Display
+        
+        // Calc Menu Stats
+        let menuHp = (player.baseHp * (1 + fs.hpPct/100)) + fs.flatHp;
+        let menuAtk = (player.baseAttack * (1 + fs.atkPct/100)) + fs.flatAtk;
+        let menuDef = (player.baseDefence * (1 + fs.defPct/100)) + fs.flatDef;
+        
+        // Calc Combat
+        let finalAtk = (menuAtk * (1 + player.combatAtkPct/100)) + player.combatFlatAtk;
+        let finalHp = (menuHp * (1 + player.combatHpPct/100)) + player.combatFlatHp;
+
+        let finalSF = (finalHp * 0.1) + (finalAtk * 0.3) + player.sheerForce + player.combatSheerForce;
+        let menuSF = (menuHp * 0.1) + (menuAtk * 0.3) + player.sheerForce;
+        let finalSDmg = player.sheerDamage + player.combatSheerDmg;
+
+        let avg = getMaxDmgFromComponents(player, fs.hpPct, fs.flatHp, fs.atkPct, fs.flatAtk, fs.defPct, fs.flatDef, fs.cr, fs.cd, fs.pen, fs.penRatio, fs.dmgBonus, fs.ap);
+        let cr = Math.min(Math.max(fs.cr, 0), 100) / 100;
+        let cdMult = 1 + (fs.cd/100);
+        let normal = avg / ((cr * cdMult) + (1 - cr));
+
+        const payload = {
+            main4: set[3].main, main5: set[4].main, main6: set[5].main,
+            subs: rolls,
+            dmgNormal: normal,
+            dmgCrit: normal * cdMult,
+            dmgAvg: avg,
+            menuStats: {
+                hp: menuHp, atk: menuAtk, def: menuDef,
+                critRate: fs.cr, critDamage: fs.cd,
+                penRatio: fs.penRatio, pen: fs.pen,
+                damageBonus: fs.dmgBonus,
+                sDmg: player.sheerDamage, totalSF: menuSF
+            },
+            combatStats: {
+                hp: finalHp, atk: finalAtk, def: menuDef,
+                critRate: fs.cr, critDamage: fs.cd,
+                penRatio: fs.penRatio, pen: fs.pen,
+                damageBonus: fs.dmgBonus,
+                sDmg: finalSDmg, totalSF: finalSF
+            }
+        };
+        self.postMessage(payload);
+    };
+    `;
+
+    // --- 2. UI LOGIC ---
+    let currentWorker = null;
+
+    // We still need Input Parsing logic in the UI thread
+    // --- SAFE MATH PARSER (No 'new Function' or 'eval') ---
+    function parseVal(id) {
+        const el = document.getElementById(id);
+        if (!el) return 0;
+        // Remove spaces
+        let str = el.value.replace(/\s/g, ''); 
+        if (!str) return 0;
+
+        // 1. Tokenize: Splits string into numbers and symbols
+        // Example: "100+20*2" -> ["100", "+", "20", "*", "2"]
+        const tokens = str.match(/(\d+(\.\d+)?|[-+*/()])/g);
+        if (!tokens) return 0;
+        let pos = 0;
+        const peek = () => tokens[pos];
+        const consume = () => tokens[pos++];
+
+        // 2. Recursive Descent Parser (Handles Order of Operations)
+        // Level 1: Addition and Subtraction
+        function parseExpression() {
+            let val = parseTerm();
+            while (pos < tokens.length && (peek() === '+' || peek() === '-')) {
+                const op = consume();
+                const right = parseTerm();
+                if (op === '+') val += right;
+                else val -= right;
+            }
+            return val;
+        }
+
+        // Level 2: Multiplication and Division
+        function parseTerm() {
+            let val = parseFactor();
+            while (pos < tokens.length && (peek() === '*' || peek() === '/')) {
+                const op = consume();
+                const right = parseFactor();
+                if (right === 0) return val; // Prevent divide by zero
+                if (op === '*') val *= right;
+                else val /= right;
+            }
+            return val;
+        }
+
+        // Level 3: Numbers and Parentheses
+        function parseFactor() {
+            // Handle negative numbers at start (e.g. "-20")
+            if (peek() === '-') { consume(); return -1 * parseFactor(); }
+            if (peek() === '(') { consume(); const val = parseExpression(); consume(); return val; }
+
+            // Parse number, default to 0 if NaN
+            return parseFloat(consume()) || 0;
+        }
+        try { const result = parseExpression(); return isNaN(result) ? 0 : result; } catch (e) { return 0; }
+    }
+
+    function updateUI() {
+        const type = document.getElementById('scalingType').value;
+        const rows = {
+            atk: document.getElementById('row-atk'),
+            hp: document.getElementById('row-hp'),
+            def: document.getElementById('row-def'),
+            crit: document.getElementById('row-crit'),
+            pen: document.getElementById('row-pen')
+        };
+        Object.values(rows).forEach(el => el.classList.remove('hidden'));
+        if (type === 'Attack') { rows.hp.classList.add('hidden'); rows.def.classList.add('hidden'); } 
+        else if (type === 'HP') { rows.atk.classList.add('hidden'); rows.def.classList.add('hidden'); } 
+        else if (type === 'Defence') { rows.atk.classList.add('hidden'); rows.hp.classList.add('hidden'); } 
+        else if (type === 'Rupture') { rows.def.classList.add('hidden'); rows.pen.classList.add('hidden'); }
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+        updateUI();
+        optimize(); 
+    });
+
+    // Helper to gather inputs into a plain object (No Class needed in UI thread really)
+    function getInputs() {
+        // We construct a simple object mimicking Player structure
+        let p = {
+            scaling: document.getElementById('scalingType').value,
+            characterLevel: parseVal('charLevel'), 
+            baseHp: parseVal('baseHp'),
+            baseAttack: parseVal('baseAttack'),
+            baseDefence: parseVal('baseDefence'),
+            atkPct: parseVal('extAtkPct'),
+            flatAttack: parseVal('extFlatAtk'),
+            hpPct: parseVal('extHpPct'),
+            flatHp: parseVal('extFlatHp'),
+            defPct: parseVal('extDefPct'),
+            flatDefence: parseVal('extFlatDef'),
+            baseCritRate: parseVal('baseCritRate'), // Using base for struct mapping in worker
+            baseCritDmg: parseVal('baseCritDmg'),
+            critRate: parseVal('baseCritRate'), // Redundant safe copy
+            critDamage: parseVal('baseCritDmg'),
+            damageBonus: parseVal('extDmgBonus'),
+            skillMultiplier: parseVal('skillMultiplier'),
+            basePenRatio: parseVal('basePenRatio'),
+            penRatio: parseVal('basePenRatio'),
+            basePen: parseVal('basePen'),
+            pen: parseVal('basePen'),
+            combatAtkPct: parseVal('combatAtkPct'),
+            combatFlatAtk: parseVal('combatFlatAtk'),
+            combatHpPct: parseVal('combatHpPct'),       // Added
+            combatFlatHp: parseVal('combatFlatHp'),     // Added
+            sheerForce: 0, // Base sheer force (menu)
+            combatSheerForce: parseVal('combatSheerForce'),
+            sheerDamage: 0,
+            combatSheerDmg: parseVal('combatSheerDmg'),
+            enemyDef: parseVal('enemyDef'),
+            defReduction: parseVal('defReduction'),
+            enemyRes: parseVal('enemyRes'),
+            damageTaken: parseVal('dmgTaken'),
+            stunMultiplier: parseVal('stunMult'),
+            anomalyProficiency: 0 // Base
+        };
+        const startLines = parseInt(document.getElementById('startLines').value);
+        return { player: p, startLines };
+    }
+
+    function optimize() {
+        const loading = document.getElementById('loading');
+        const output = document.getElementById('output');
+        loading.style.display = 'block';
+        output.style.opacity = '0.4';
+
+        // 1. Terminate existing worker if user mashes button
+        if (currentWorker) {
+            currentWorker.terminate();
+        }
+
+        // 2. Create Blob and Worker
+        const blob = new Blob([workerCode], {type: 'application/javascript'});
+        currentWorker = new Worker(URL.createObjectURL(blob));
+
+        // 3. Setup Listener
+        currentWorker.onmessage = function(e) {
+            displayResults(e.data);
+            loading.style.display = 'none';
+            output.style.opacity = '1';
+            output.style.display = 'block';
+        };
+
+        // 4. Send Data
+        const input = getInputs();
+        currentWorker.postMessage(input);
+    }
+
+    function displayResults(res) {
+        if (!res) return;
+
+        const fmt = n => Math.round(n).toLocaleString();
+        const pct = n => n.toFixed(1) + '%';
+
+        // Use pre-calculated values from Worker
+        document.getElementById('resNormalDmg').innerText = fmt(res.dmgNormal);
+        document.getElementById('resCritDmg').innerText = fmt(res.dmgCrit);
+        document.getElementById('resAvgDmg').innerText = fmt(res.dmgAvg);
+
+        const rows = [
+            { label: 'HP', k: 'hp', fmt: fmt },
+            { label: 'Attack', k: 'atk', fmt: fmt },
+            { label: 'Defence', k: 'def', fmt: fmt },
+            { label: 'Crit Rate', k: 'critRate', direct: true, fmt: pct },
+            { label: 'Crit DMG', k: 'critDamage', direct: true, fmt: pct },
+            { label: 'PEN Ratio', k: 'penRatio', direct: true, fmt: pct },
+            { label: 'PEN', k: 'pen', direct: true, fmt: fmt }, 
+            { label: 'DMG Bonus', k: 'damageBonus', direct: true, fmt: pct },
+            { label: 'Sheer Force', k: 'totalSF', fmt: fmt },
+            { label: 'Sheer DMG%', k: 'sDmg', fmt: pct }
+        ];
+
+        const renderTable = (targetId, dataSource) => {
+            const container = document.getElementById(targetId);
+            container.innerHTML = '';
+            rows.forEach(r => {
+                let val = r.direct ? dataSource[r.k] : dataSource[r.k];
+                if (val === undefined) val = 0;
+                let div = document.createElement('div');
+                div.className = 'agent-stat-row';
+                div.innerHTML = `<span>${r.label}</span> <span class="val-col">${r.fmt(val)}</span>`;
+                container.appendChild(div);
+            });
+        };
+
+        renderTable('menuStatsBody', res.menuStats);
+        renderTable('combatStatsBody', res.combatStats);
+
+        const mainMap = {
+            'HP': 'HP%', 'FlatHP': 'HP',
+            'Attack': 'ATK%', 'FlatAttack': 'Attack',
+            'Defence': 'DEF%', 'FlatDefence': 'Defence',
+            'CritRate': 'Crit Rate', 'CritDamage': 'Crit DMG',
+            'AnomalyProficiency': 'Anomaly Proficiency', 'AnomalyMastery': 'Anomaly Mastery',
+            'PENRatio': 'PEN Ratio', 'DamageBonus': 'DMG<br>Bonus',
+            'EnergyRegen': 'Energy Regen', 'Impact': 'Impact'
+        };
+
+        document.getElementById('slot4Rec').innerHTML = mainMap[res.main4] || res.main4;
+        document.getElementById('slot5Rec').innerHTML = mainMap[res.main5] || res.main5;
+        document.getElementById('slot6Rec').innerHTML = mainMap[res.main6] || res.main6;
+
+        const container = document.getElementById('substatBars');
+        container.innerHTML = '';
+        let subData = [];
+        
+        // Map Keys back to human readable
+        const kMap = {
+            hpPct: 'HP %', flatHp: 'Flat HP',
+            atkPct: 'Attack %', flatAtk: 'Flat Attack',
+            defPct: 'Def %', flatDef: 'Flat Def',
+            critRate: 'Crit Rate', critDmg: 'Crit DMG',
+            pen: 'Flat PEN', anomalyProf: 'Anomaly Prof'
+        };
+
+        for(let [k,v] of Object.entries(res.subs)) if(v>0) subData.push({id:kMap[k]||k, count:v});
+        subData.sort((a,b)=>b.count - a.count);
+
+        let max = subData.length ? subData[0].count : 1;
+        subData.forEach(s => {
+            let width = (s.count/max)*100;
+            let row = document.createElement('div');
+            row.className = 'bar-row';
+            row.innerHTML = `
+                <div class="bar-label">${s.id}</div>
+                <div class="bar-track"><div class="bar-fill" style="width:${width}%"></div></div>
+                <div class="bar-val">${s.count}</div>
+            `;
+            container.appendChild(row);
+        });
+    }
+</script>
+</body>
+</html>
