@@ -1,0 +1,2182 @@
+<!DOCTYPE html>
+<html lang="en-US">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ZZZ Optimal Distribution Calculator</title>
+    <style>
+        :root {
+            --bg-color: #1a1a1d;
+            --card-bg: #2d2d32;
+            --input-bg: #111;
+            --accent: #ff6600;
+            --accent-hover: #ff8533;
+            --text-main: #eeeeee;
+            --text-muted: #aaaaaa;
+            --border: #444;
+            --danger: #ff4d4d;
+        }
+
+        *, *::before, *::after {
+            box-sizing: border-box;
+        }
+
+        html {
+            scrollbar-gutter: stable;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .container {
+            max-width: 1500px;
+            width: 100%;
+            display: grid;
+            /* Layout: Agent Config | Results | Enemy & Optimizer */
+            grid-template-columns: clamp(315px, 24vw, 360px) minmax(0, 1fr) clamp(315px, 24vw, 360px);
+            gap: 20px;
+        }
+
+        .card {
+            background-color: var(--card-bg);
+            border-radius: 8px;
+            padding: 20px;
+            border: 1px solid var(--border);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            height: fit-content;
+            min-width: 0;
+        }
+
+        .results-column {
+            position: relative;
+            container-type: inline-size;
+            container-name: results;
+        }
+
+        .right-stack {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            min-width: 0;
+        }
+
+        h1, h2, h3 { margin-top: 0; color: var(--accent); }
+        h1 { grid-column: 1 / -1; text-align: center; margin-bottom: 20px; font-size: 2rem; letter-spacing: 1px; text-transform: uppercase; overflow-wrap: break-word; }
+        h2 { font-size: 1.2rem; border-bottom: 1px solid var(--border); padding-bottom: 10px; margin-bottom: 15px; }
+        h3 { font-size: 0.85rem; color: #ccc; text-transform: uppercase; letter-spacing: 1px; margin-top: 20px; background: rgba(255,255,255,0.05); padding: 5px 8px; border-radius: 4px; }
+
+        .card > h2 + .notice + h3 { margin-top: 0; }
+        .input-group { margin-bottom: 0; min-width: 0; }
+        .input-group-spaced { margin-bottom: 12px; }
+
+        label {
+            display: block;
+            font-size: 0.85em;
+            color: var(--text-muted);
+            margin-bottom: 4px;
+            cursor: pointer;
+        }
+
+        input, select {
+            width: 100%;
+            max-width: 100%;
+            min-width: 0;
+            background-color: var(--input-bg);
+            border: 1px solid var(--border);
+            color: white;
+            padding: 8px 10px;
+            border-radius: 4px;
+            font-size: 0.95em;
+            transition: border 0.2s, background-color 0.2s;
+            font-family: 'Consolas', 'Monaco', monospace;
+        }
+        input:focus, select:focus { border-color: var(--accent); outline: none; }
+        input.input-invalid {
+            border-color: var(--danger) !important;
+            background-color: #2a1414 !important;
+        }
+
+        .stat-row {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            align-items: end;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+        .stat-row-3 {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+        .hidden { display: none !important; }
+
+        .btn {
+            background-color: var(--accent);
+            color: white;
+            border: none;
+            padding: 16px;
+            font-size: 1.1em;
+            font-weight: bold;
+            cursor: pointer;
+            border-radius: 4px;
+            width: 100%;
+            margin-top: 16px;
+            text-transform: uppercase;
+            transition: background 0.2s;
+        }
+        .btn:hover { background-color: var(--accent-hover); }
+
+        .btn-secondary {
+            background-color: transparent;
+            color: var(--text-muted);
+            border: 1px solid var(--border);
+            padding: 10px;
+            font-size: 0.85em;
+            font-weight: 600;
+            cursor: pointer;
+            border-radius: 4px;
+            width: 100%;
+            margin-top: 10px;
+            text-transform: uppercase;
+            transition: border-color 0.2s, color 0.2s;
+        }
+        .btn-secondary:hover {
+            border-color: #888;
+            color: var(--text-main);
+        }
+
+        .error-banner {
+            background-color: rgba(255, 77, 77, 0.14);
+            border: 1px solid var(--danger);
+            color: #ffb3b3;
+            padding: 10px 14px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+            font-size: 0.9em;
+        }
+
+        .loading-overlay {
+            display: none;
+            position: absolute;
+            top: 64px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(26, 26, 29, 0.94);
+            border: 1px solid var(--accent);
+            color: var(--text-main);
+            padding: 10px 18px;
+            border-radius: 6px;
+            font-size: 0.9em;
+            z-index: 10;
+            pointer-events: none;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+            white-space: nowrap;
+        }
+
+        .pre-run-notice {
+            background: #222;
+            border: 1px dashed var(--border);
+            border-radius: 4px;
+            padding: 14px;
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 0.9em;
+            margin-top: 10px;
+        }
+
+        /* Results Styling */
+        .results-header {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr);
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background: #222;
+            padding: 14px;
+            border-radius: 4px;
+            text-align: center;
+            border-top: 3px solid var(--accent);
+            min-width: 0;
+        }
+        .stat-card.avg { border-color: #ffd700; background: #2a2a22; }
+        .stat-card.avg strong { color: #ffd700; }
+        .stat-card small { display: block; color: var(--text-muted); font-size: 0.8em; margin-bottom: 5px; }
+        .stat-card strong { font-size: 1.4em; display: block; overflow-wrap: anywhere; }
+
+        .stats-comparison {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr);
+            gap: 14px;
+            margin-bottom: 20px;
+        }
+
+        .agent-stats {
+            background: #222;
+            padding: 15px;
+            border-radius: 4px;
+            font-size: 0.9em;
+            min-width: 0;
+        }
+        .agent-stats h4 { margin: 0 0 10px 0; color: #fff; border-bottom: 1px solid #444; padding-bottom: 5px; text-align: center; }
+        .agent-stat-row { display: flex; justify-content: space-between; border-bottom: 1px solid #333; padding: 4px 0; gap: 8px; }
+        .agent-stat-row:last-child { border-bottom: none; }
+        .val-col { color: var(--accent); font-weight: bold; }
+
+        .rec-grid {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr);
+            gap: 16px;
+        }
+        .rec-grid > div { min-width: 0; }
+
+        .disc-layout {
+            container-type: inline-size;
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 90px));
+            justify-content: space-around;
+            align-items: center;
+            gap: clamp(8px, 3cqi, 15px);
+            width: 100%;
+            max-width: 400px;
+            margin: 18px auto;
+            padding: 6px 5px 2px;
+        }
+        .disc {
+            background: #111;
+            border: 2px solid #444;
+            border-radius: 50%;
+            width: 100%;
+            aspect-ratio: 1 / 1;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            font-size: clamp(9.5px, 4.2cqi, 12.8px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.5);
+            position: relative;
+            padding: 4px;
+        }
+        .disc span.disc-main-val {
+            color: var(--accent);
+            font-weight: bold;
+            font-size: 1.05em;
+            line-height: 1.15;
+            max-width: 100%;
+            overflow-wrap: break-word;
+        }
+        .disc span.disc-slot-label {
+            margin-top: 2px;
+            font-size: 0.75em;
+            color: #888;
+            white-space: nowrap;
+        }
+        .disc-num {
+            position: absolute;
+            top: -4px;
+            left: -4px;
+            background: #333;
+            color: white;
+            border-radius: 50%;
+            width: clamp(16px, 6.2cqi, 20px);
+            height: clamp(16px, 6.2cqi, 20px);
+            font-size: clamp(10px, 3.4cqi, 12.8px);
+            line-height: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .substat-bars { margin-top: 15px; }
+        .bar-row { display: flex; align-items: center; margin-bottom: 8px; font-size: 0.9em; min-width: 0; }
+        .bar-label { width: 115px; color: #ddd; flex-shrink: 0; }
+        .bar-track { flex-grow: 1; min-width: 24px; background: #333; height: 8px; border-radius: 4px; margin: 0 10px; overflow: hidden; }
+        .bar-fill { height: 100%; background: var(--accent); }
+        .bar-val { width: 34px; text-align: right; color: #aaa; flex-shrink: 0; }
+
+        .per-disc-section {
+            margin-top: 20px;
+        }
+        .per-disc-grid {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr);
+            gap: 12px;
+            margin-top: 12px;
+        }
+        .disc-card {
+            background: #222;
+            border: 1px solid #38383d;
+            border-radius: 6px;
+            padding: 10px 12px;
+            font-size: 0.85em;
+            min-width: 0;
+        }
+        .disc-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 7px;
+            gap: 8px;
+        }
+        .disc-card-slot {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-weight: bold;
+            color: #fff;
+        }
+        .disc-slot-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #333;
+            border: 1px solid #555;
+            color: #fff;
+            font-size: 0.82em;
+            font-weight: bold;
+            line-height: 1;
+            flex-shrink: 0;
+        }
+        .disc-card-level {
+            color: var(--text-muted);
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 0.85em;
+        }
+        .disc-card-main-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            gap: 8px;
+            background: rgba(255, 102, 0, 0.08);
+            border-left: 2px solid var(--accent);
+            border-radius: 3px;
+            padding: 4px 7px;
+            margin-bottom: 7px;
+        }
+        .disc-main-name {
+            color: #f0f0f0;
+            font-weight: 600;
+            min-width: 0;
+        }
+        .disc-card-main {
+            color: var(--accent);
+            font-weight: bold;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-variant-numeric: tabular-nums;
+            text-align: right;
+            flex-shrink: 0;
+        }
+        .disc-sub-list {
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+        }
+        .disc-sub-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            padding: 1px 2px;
+            color: #ddd;
+            gap: 8px;
+        }
+        .disc-sub-row.filler {
+            color: #777;
+            font-style: italic;
+        }
+        .disc-sub-left {
+            display: inline-flex;
+            align-items: baseline;
+            gap: 5px;
+            min-width: 0;
+        }
+        .disc-sub-plus {
+            color: var(--accent-hover);
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-weight: bold;
+            font-size: 0.92em;
+            font-style: normal;
+            flex-shrink: 0;
+        }
+        .disc-sub-row.filler .disc-sub-plus {
+            color: #888;
+        }
+        .disc-sub-val {
+            color: #ffd0a6;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-variant-numeric: tabular-nums;
+            flex-shrink: 0;
+            text-align: right;
+        }
+        .disc-sub-row.filler .disc-sub-val {
+            color: #666;
+        }
+
+        .notice { font-size: 0.8em; color: #888; margin-top: 4px; margin-bottom: 8px; line-height: 1.3; font-style: italic; }
+        .lock-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        /* Container-aware Results Layout */
+        @container results (max-width: 340px) {
+            .bar-row { font-size: 0.85em; }
+            .bar-label { width: 100px; }
+        }
+
+        @container results (min-width: 440px) {
+            .stats-comparison {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                gap: clamp(12px, 2.5cqi, 20px);
+            }
+            .per-disc-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+        }
+
+        @container results (min-width: 460px) {
+            .results-header {
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+                gap: clamp(10px, 2cqi, 15px);
+            }
+            .stat-card {
+                padding: clamp(10px, 2.2cqi, 15px);
+            }
+            .stat-card strong {
+                font-size: clamp(1.1rem, 3.8cqi, 1.4rem);
+            }
+        }
+
+        @container results (min-width: 580px) {
+            .per-disc-grid {
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+            }
+        }
+
+        @container results (min-width: 640px) {
+            .rec-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                gap: 20px;
+            }
+        }
+
+        /* Responsive Viewport Layouts */
+        @media (max-width: 1200px) {
+            .container { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            .results-column { grid-column: 1 / -1; grid-row: 2; }
+        }
+
+        @media (max-width: 768px) {
+            body { padding: 12px; }
+            h1 { font-size: 1.45rem; margin-bottom: 14px; }
+            .container { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+            .right-stack { gap: 16px; }
+            .results-column { grid-column: auto; grid-row: auto; }
+        }
+
+        @media (max-width: 480px) {
+            body { padding: 10px; }
+            h1 { font-size: 1.25rem; margin-bottom: 12px; }
+            .card { padding: 14px; }
+            .lock-grid { grid-template-columns: minmax(0, 1fr); }
+        }
+    </style>
+</head>
+
+<body>
+<div class="container">
+    <h1>ZZZ Optimal Distribution Calculator</h1>
+
+    <!-- COLUMN 1: Agent Configuration -->
+    <div class="card">
+        <h2>Agent Configuration</h2>
+        <div class="notice">Math inputs allowed (e.g. "800 + 150")</div>
+
+        <h3>Base Stats</h3>
+        <div class="input-group input-group-spaced">
+            <label for="scalingType">Damage Scaling Type</label>
+            <select id="scalingType">
+                <option value="Attack">Attack</option>
+                <option value="HP">HP</option>
+                <option value="Defense">Defense</option>
+                <option value="Rupture">Rupture</option>
+            </select>
+        </div>
+        <div class="stat-row stat-row-3">
+            <div class="input-group">
+                <label for="charLevel">Level</label>
+                <input type="text" id="charLevel" value="60">
+            </div>
+            <div class="input-group">
+                <label for="baseHp">Base HP</label>
+                <input type="text" id="baseHp" value="0">
+            </div>
+            <div class="input-group">
+                <label for="baseDefense">Base Def</label>
+                <input type="text" id="baseDefense" value="0">
+            </div>
+        </div>
+        <div class="input-group input-group-spaced">
+            <label for="baseAttack">Base Attack (Char + Engine)</label>
+            <input type="text" id="baseAttack" value="0">
+        </div>
+
+        <h3>Additional Stats</h3>
+        <div class="notice">Menu/Sheet stats from Core, Disc 2pc, etc.</div>
+
+        <!-- Stats Rows - Visibility controlled by JS -->
+        <div id="row-atk" class="stat-row">
+            <div class="input-group">
+                <label for="extAtkPct">Attack %</label>
+                <input type="text" id="extAtkPct" value="0">
+            </div>
+            <div class="input-group">
+                <label for="extFlatAtk">Flat Attack</label>
+                <input type="text" id="extFlatAtk" value="0">
+            </div>
+        </div>
+
+        <div id="row-hp" class="stat-row">
+            <div class="input-group">
+                <label for="extHpPct">HP %</label>
+                <input type="text" id="extHpPct" value="0">
+            </div>
+            <div class="input-group">
+                <label for="extFlatHp">Flat HP</label>
+                <input type="text" id="extFlatHp" value="0">
+            </div>
+        </div>
+
+        <div id="row-def" class="stat-row">
+            <div class="input-group">
+                <label for="extDefPct">DEF %</label>
+                <input type="text" id="extDefPct" value="0">
+            </div>
+            <div class="input-group">
+                <label for="extFlatDef">Flat DEF</label>
+                <input type="text" id="extFlatDef" value="0">
+            </div>
+        </div>
+
+        <div id="row-crit" class="stat-row">
+            <div class="input-group">
+                <label for="baseCritRate">Crit Rate %</label>
+                <input type="text" id="baseCritRate" value="5">
+            </div>
+            <div class="input-group">
+                <label for="baseCritDmg">Crit DMG %</label>
+                <input type="text" id="baseCritDmg" value="50">
+            </div>
+        </div>
+
+        <div class="stat-row">
+            <div class="input-group">
+                <label for="extDmgBonus">DMG Bonus %</label>
+                <input type="text" id="extDmgBonus" value="0">
+            </div>
+            <div class="input-group">
+                <label for="skillMultiplier">Skill Multiplier (%)</label>
+                <input type="text" id="skillMultiplier" value="100">
+            </div>
+        </div>
+
+        <div id="row-pen" class="stat-row">
+            <div class="input-group">
+                <label for="basePenRatio">PEN Ratio %</label>
+                <input type="text" id="basePenRatio" value="0">
+            </div>
+            <div class="input-group">
+                <label for="basePen">Flat PEN</label>
+                <input type="text" id="basePen" value="0">
+            </div>
+        </div>
+
+        <h3>In-Combat Buffs</h3>
+        <div class="notice">Multiplies Menu Stats. Flat adds to end.</div>
+        <div id="row-combat-atk" class="stat-row">
+            <div class="input-group">
+                <label for="combatAtkPct">Combat Atk Buff %</label>
+                <input type="text" id="combatAtkPct" value="0">
+            </div>
+            <div class="input-group">
+                <label for="combatFlatAtk">Combat Flat Atk</label>
+                <input type="text" id="combatFlatAtk" value="0">
+            </div>
+        </div>
+
+        <div id="row-combat-hp" class="stat-row">
+            <div class="input-group">
+                <label for="combatHpPct">Combat HP Buff %</label>
+                <input type="text" id="combatHpPct" value="0">
+            </div>
+            <div class="input-group">
+                <label for="combatFlatHp">Combat Flat HP</label>
+                <input type="text" id="combatFlatHp" value="0">
+            </div>
+        </div>
+
+        <div id="row-combat-crit" class="stat-row">
+            <div class="input-group">
+                <label for="combatCritRate">Crit Rate %</label>
+                <input type="text" id="combatCritRate" value="0">
+            </div>
+            <div class="input-group">
+                <label for="combatCritDmg">Crit DMG %</label>
+                <input type="text" id="combatCritDmg" value="0">
+            </div>
+        </div>
+
+        <div id="row-combat-sheer" class="stat-row">
+            <div class="input-group">
+                <label for="combatSheerForce">Sheer Force (Flat)</label>
+                <input type="text" id="combatSheerForce" value="0">
+            </div>
+            <div class="input-group">
+                <label for="combatSheerDmg">Sheer DMG %</label>
+                <input type="text" id="combatSheerDmg" value="0">
+            </div>
+        </div>
+    </div>
+
+    <!-- COLUMN 2: Results -->
+    <div class="card results-column">
+        <h2>Optimization Results</h2>
+
+        <div id="errorBanner" class="error-banner hidden" role="alert"></div>
+
+        <div id="loading" class="loading-overlay">
+            Running optimizer...
+        </div>
+
+        <div id="output">
+            <!-- Damage Numbers -->
+            <div class="results-header">
+                <div class="stat-card">
+                    <small>Normal Hit</small>
+                    <strong id="resNormalDmg">0</strong>
+                </div>
+                <div class="stat-card">
+                    <small>Crit Hit</small>
+                    <strong id="resCritDmg">0</strong>
+                </div>
+                <div class="stat-card avg">
+                    <small>Average Damage</small>
+                    <strong id="resAvgDmg">0</strong>
+                </div>
+            </div>
+
+            <!-- Stats Table Comparison -->
+            <div class="stats-comparison">
+                <div class="agent-stats">
+                    <h4>Menu Stats</h4>
+                    <div id="menuStatsBody"></div>
+                </div>
+                <div class="agent-stats">
+                    <h4>Total Combat Stats</h4>
+                    <div id="combatStatsBody"></div>
+                </div>
+            </div>
+
+            <div id="preRunNotice" class="pre-run-notice">
+                Configure your agent and enemy stats and click Calculate to see recommended drive disc main stats and substat distribution.
+            </div>
+
+            <div id="recommendationsSection" class="hidden">
+                <div class="rec-grid">
+                    <!-- Disc Recommendations -->
+                    <div>
+                        <h3>Recommended Main Stats</h3>
+                        <div class="disc-layout">
+                            <div class="disc">
+                                <div class="disc-num">4</div>
+                                <span id="slot4Rec" class="disc-main-val">?</span>
+                                <span class="disc-slot-label">Slot IV</span>
+                            </div>
+                            <div class="disc">
+                                <div class="disc-num">5</div>
+                                <span id="slot5Rec" class="disc-main-val">?</span>
+                                <span class="disc-slot-label">Slot V</span>
+                            </div>
+                            <div class="disc">
+                                <div class="disc-num">6</div>
+                                <span id="slot6Rec" class="disc-main-val">?</span>
+                                <span class="disc-slot-label">Slot VI</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Substat Priority -->
+                    <div>
+                        <h3>Substat Priority</h3>
+                        <div id="substatBars" class="substat-bars"></div>
+                    </div>
+                </div>
+
+                <!-- Individual Disc Substat Breakdown -->
+                <div class="per-disc-section">
+                    <h3>Individual Disc Substat Breakdown</h3>
+                    <div id="perDiscGrid" class="per-disc-grid"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- COLUMN 3: Enemy + Optimizer (Right Stack) -->
+    <div class="right-stack">
+        <!-- Enemy Settings -->
+        <div class="card">
+            <h2>Enemy Settings</h2>
+            <div class="stat-row">
+                <div class="input-group">
+                    <label for="enemyDef">Enemy Def</label>
+                    <input type="text" id="enemyDef" value="953">
+                </div>
+                <div class="input-group">
+                    <label for="defReduction">Def Reduction/Ignore (%)</label>
+                    <input type="text" id="defReduction" value="0">
+                </div>
+            </div>
+            <div class="stat-row">
+                <div class="input-group">
+                    <label for="enemyRes">Enemy Res (%)</label>
+                    <input type="text" id="enemyRes" value="0">
+                </div>
+                <div class="input-group">
+                    <label for="dmgTaken">Damage Taken (%)</label>
+                    <input type="text" id="dmgTaken" value="0">
+                </div>
+            </div>
+            <div class="stat-row">
+                <div class="input-group">
+                    <label for="stunMult">Stun Multiplier (%)</label>
+                    <input type="text" id="stunMult" value="100">
+                </div>
+            </div>
+        </div>
+
+        <!-- Optimizer Settings -->
+        <div class="card">
+            <h2>Optimizer Settings</h2>
+            <div class="input-group">
+                <label for="startLines">Substat Budget</label>
+                <select id="startLines">
+                    <option value="4" selected>Standard (Start 3 Lines - 48 Rolls)</option>
+                    <option value="5">Endgame (Start 4 Lines - 54 Rolls)</option>
+                </select>
+            </div>
+
+            <h3>Main Stat Locks (Optional)</h3>
+            <div class="lock-grid">
+                <div class="input-group">
+                    <label for="lockSlot4">Slot IV</label>
+                    <select id="lockSlot4">
+                        <option value="Auto" selected>Auto</option>
+                    </select>
+                </div>
+                <div class="input-group">
+                    <label for="lockSlot5">Slot V</label>
+                    <select id="lockSlot5">
+                        <option value="Auto" selected>Auto</option>
+                    </select>
+                </div>
+                <div class="input-group">
+                    <label for="lockSlot6">Slot VI</label>
+                    <select id="lockSlot6">
+                        <option value="Auto" selected>Auto</option>
+                    </select>
+                </div>
+            </div>
+
+            <button type="button" id="calculateBtn" class="btn">Calculate</button>
+            <button type="button" id="resetBtn" class="btn-secondary">CLEAR ALL</button>
+        </div>
+    </div>
+</div>
+
+<!-- WORKER CODE -->
+<script id="worker-code" type="javascript/worker">
+    const ROLLS = {
+        HP: 3, FlatHP: 112, Attack: 3, FlatAttack: 19,
+        Defense: 4.8, FlatDefense: 15, CritRate: 2.4, CritDamage: 4.8,
+        AnomalyProficiency: 9, PEN: 9
+    };
+
+    const MAINS = {
+        FlatHP: 2200, FlatAttack: 316, FlatDefense: 184,
+        HP: 30, Attack: 30, Defense: 48,
+        CritRate: 24, CritDamage: 48, AnomalyProficiency: 92,
+        PENRatio: 24, DamageBonus: 30, AnomalyMastery: 30,
+        Impact: 18, EnergyRegen: 60
+    };
+
+    const MS = {
+        HP: 'HP', FlatHP: 'FlatHP', Attack: 'Attack', FlatAttack: 'FlatAttack',
+        Defense: 'Defense', FlatDefense: 'FlatDefense',
+        CritRate: 'CritRate', CritDamage: 'CritDamage', AnomalyProficiency: 'AnomalyProficiency',
+        PENRatio: 'PENRatio', DamageBonus: 'DamageBonus', AnomalyMastery: 'AnomalyMastery',
+        Impact: 'Impact', EnergyRegen: 'EnergyRegen'
+    };
+
+    const SUB = {
+        HP: 'HP', FlatHP: 'FlatHP', Attack: 'Attack', FlatAttack: 'FlatAttack',
+        Defense: 'Defense', FlatDefense: 'FlatDefense',
+        CritRate: 'CritRate', CritDamage: 'CritDamage',
+        PEN: 'PEN', AnomalyProficiency: 'AnomalyProficiency'
+    };
+
+    const LINEAR_CANDIDATES = [
+        SUB.Attack, SUB.FlatAttack,
+        SUB.HP, SUB.FlatHP,
+        SUB.Defense, SUB.FlatDefense,
+        SUB.AnomalyProficiency
+    ];
+
+    function copyPlayer(src) {
+        return {
+            scaling: src.scaling,
+            levelFactor: src.levelFactor,
+            baseHp: src.baseHp,
+            baseAttack: src.baseAttack,
+            baseDefense: src.baseDefense,
+            atkPct: src.atkPct,
+            flatAttack: src.flatAttack,
+            hpPct: src.hpPct,
+            flatHp: src.flatHp,
+            defPct: src.defPct,
+            flatDefense: src.flatDefense,
+            critRate: src.critRate,
+            critDamage: src.critDamage,
+            damageBonus: src.damageBonus,
+            skillMultiplier: src.skillMultiplier,
+            penRatio: src.penRatio,
+            pen: src.pen,
+            combatAtkPct: src.combatAtkPct,
+            combatFlatAtk: src.combatFlatAtk,
+            combatHpPct: src.combatHpPct,
+            combatFlatHp: src.combatFlatHp,
+            combatCritRate: src.combatCritRate,
+            combatCritDmg: src.combatCritDmg,
+            combatSheerForce: src.combatSheerForce,
+            combatSheerDmg: src.combatSheerDmg,
+            enemyDef: src.enemyDef,
+            defReduction: src.defReduction,
+            enemyRes: src.enemyRes,
+            damageTaken: src.damageTaken,
+            stunMultiplier: src.stunMultiplier,
+            anomalyProficiency: src.anomalyProficiency
+        };
+    }
+
+    function resetMutableStats(dst, src) {
+        dst.combatFlatHp = src.combatFlatHp;
+        dst.combatFlatAtk = src.combatFlatAtk;
+        dst.flatDefense = src.flatDefense;
+        dst.combatSheerForce = src.combatSheerForce;
+        dst.critRate = src.critRate;
+        dst.critDamage = src.critDamage;
+        dst.pen = src.pen;
+    }
+
+    function applyMainStat(p, m) {
+        switch (m) {
+            case MS.HP: p.hpPct += MAINS.HP; break;
+            case MS.FlatHP: p.flatHp += MAINS.FlatHP; break;
+            case MS.Attack: p.atkPct += MAINS.Attack; break;
+            case MS.FlatAttack: p.flatAttack += MAINS.FlatAttack; break;
+            case MS.Defense: p.defPct += MAINS.Defense; break;
+            case MS.FlatDefense: p.flatDefense += MAINS.FlatDefense; break;
+            case MS.CritRate: p.critRate += MAINS.CritRate; break;
+            case MS.CritDamage: p.critDamage += MAINS.CritDamage; break;
+            case MS.AnomalyProficiency: p.anomalyProficiency += MAINS.AnomalyProficiency; break;
+            case MS.PENRatio: p.penRatio += MAINS.PENRatio; break;
+            case MS.DamageBonus: p.damageBonus += MAINS.DamageBonus; break;
+            default: break;
+        }
+    }
+
+    function applySubStatRolls(p, s, rolls) {
+        switch (s) {
+            case SUB.HP: p.hpPct += ROLLS.HP * rolls; break;
+            case SUB.FlatHP: p.flatHp += ROLLS.FlatHP * rolls; break;
+            case SUB.Attack: p.atkPct += ROLLS.Attack * rolls; break;
+            case SUB.FlatAttack: p.flatAttack += ROLLS.FlatAttack * rolls; break;
+            case SUB.Defense: p.defPct += ROLLS.Defense * rolls; break;
+            case SUB.FlatDefense: p.flatDefense += ROLLS.FlatDefense * rolls; break;
+            case SUB.CritRate: p.critRate += ROLLS.CritRate * rolls; break;
+            case SUB.CritDamage: p.critDamage += ROLLS.CritDamage * rolls; break;
+            case SUB.AnomalyProficiency: p.anomalyProficiency += ROLLS.AnomalyProficiency * rolls; break;
+            case SUB.PEN: p.pen += ROLLS.PEN * rolls; break;
+            default: break;
+        }
+    }
+
+    function getLinearWeight(s, p) {
+        const atkBuffMult = 1 + (p.combatAtkPct / 100);
+        const hpBuffMult = 1 + (p.combatHpPct / 100);
+        switch (p.scaling) {
+            case 'Attack':
+                if (s === SUB.Attack) return (ROLLS.Attack / 100) * p.baseAttack * atkBuffMult;
+                if (s === SUB.FlatAttack) return ROLLS.FlatAttack * atkBuffMult;
+                return 0;
+            case 'HP':
+                if (s === SUB.HP) return (ROLLS.HP / 100) * p.baseHp * hpBuffMult;
+                if (s === SUB.FlatHP) return ROLLS.FlatHP * hpBuffMult;
+                return 0;
+            case 'Defense':
+                if (s === SUB.Defense) return (ROLLS.Defense / 100) * p.baseDefense;
+                if (s === SUB.FlatDefense) return ROLLS.FlatDefense;
+                return 0;
+            case 'Rupture':
+                if (s === SUB.HP) return 0.1 * (ROLLS.HP / 100) * p.baseHp * hpBuffMult;
+                if (s === SUB.FlatHP) return 0.1 * ROLLS.FlatHP * hpBuffMult;
+                if (s === SUB.Attack) return 0.3 * (ROLLS.Attack / 100) * p.baseAttack * atkBuffMult;
+                if (s === SUB.FlatAttack) return 0.3 * ROLLS.FlatAttack * atkBuffMult;
+                return 0;
+            default:
+                return 0;
+        }
+    }
+
+    function applyLinearGain(p, linearGain) {
+        switch (p.scaling) {
+            case 'Attack':
+                p.combatFlatAtk += linearGain;
+                break;
+            case 'HP':
+                p.combatFlatHp += linearGain;
+                break;
+            case 'Defense':
+                p.flatDefense += linearGain;
+                break;
+            case 'Rupture':
+                p.combatSheerForce += linearGain;
+                break;
+        }
+    }
+
+    function getEligibleLinearSubstats(main, p) {
+        const list = [];
+        for (let i = 0; i < LINEAR_CANDIDATES.length; i++) {
+            const s = LINEAR_CANDIDATES[i];
+            if (main !== s) {
+                list.push({ sub: s, weight: getLinearWeight(s, p) });
+            }
+        }
+        list.sort((a, b) => b.weight - a.weight);
+        return list;
+    }
+
+    function computeStatTotals(p) {
+        const menuHp = (p.baseHp * (1 + p.hpPct / 100)) + p.flatHp;
+        const menuAtk = (p.baseAttack * (1 + p.atkPct / 100)) + p.flatAttack;
+        const menuDef = (p.baseDefense * (1 + p.defPct / 100)) + p.flatDefense;
+        const finalAtk = (menuAtk * (1 + p.combatAtkPct / 100)) + p.combatFlatAtk;
+        const finalHp = (menuHp * (1 + p.combatHpPct / 100)) + p.combatFlatHp;
+        const menuSF = (menuHp * 0.1) + (menuAtk * 0.3);
+        const finalSF = (finalHp * 0.1) + (finalAtk * 0.3) + p.combatSheerForce;
+        return { menuHp, menuAtk, menuDef, finalHp, finalAtk, menuSF, finalSF };
+    }
+
+    function computeNonCritDamage(p) {
+        const stats = computeStatTotals(p);
+        const skillMult = Math.max(0, p.skillMultiplier / 100);
+        const dmgBonusMult = Math.max(0, 1 + (p.damageBonus / 100));
+        const stunMult = Math.max(0, p.stunMultiplier / 100);
+        const dmgTakenMult = Math.max(0, 1 + (p.damageTaken / 100));
+        const resMult = Math.max(0, 1 - (p.enemyRes / 100));
+
+        let nonCritDmg = 0;
+        if (p.scaling === 'Rupture') {
+            const rM = Math.max(0, 1 + (p.combatSheerDmg / 100));
+            nonCritDmg = stats.finalSF * skillMult * dmgBonusMult * resMult * dmgTakenMult * stunMult * rM;
+        } else {
+            const levelFactor = p.levelFactor;
+            const ignore = Math.min(Math.max(p.defReduction, 0), 100);
+            const penRatio = Math.min(Math.max(p.penRatio, 0), 100);
+            const ignoreMult = (100 - ignore) / 100;
+            const eDef = Math.max(0, (p.enemyDef * ignoreMult * (1 - penRatio / 100)) - p.pen);
+            const defMult = levelFactor / (eDef + levelFactor);
+            const baseVal = (p.scaling === 'Attack') ? stats.finalAtk : (p.scaling === 'Defense' ? stats.menuDef : stats.finalHp);
+            nonCritDmg = baseVal * skillMult * dmgBonusMult * resMult * defMult * dmgTakenMult * stunMult;
+        }
+
+        return Math.max(0, nonCritDmg);
+    }
+
+    function computeDamageBreakdown(p) {
+        const nonCritDmg = computeNonCritDamage(p);
+        const cRate = Math.min(Math.max(p.critRate + p.combatCritRate, 0), 100) / 100;
+        const cDmgMult = Math.max(0, 1 + ((p.critDamage + p.combatCritDmg) / 100));
+        const critDmg = nonCritDmg * cDmgMult;
+        const avgDmg = ((cRate * cDmgMult) + (1 - cRate)) * nonCritDmg;
+        return { normal: nonCritDmg, crit: critDmg, avg: avgDmg };
+    }
+
+    function isSubUseful(sub, afterMains, hasPen, maxCR, maxPEN, dmgAvg) {
+        if (dmgAvg <= 0) return false;
+        if (sub === SUB.CritRate) return maxCR > 0;
+        if (sub === SUB.CritDamage) return true;
+        if (sub === SUB.PEN) return hasPen && maxPEN > 0;
+        return getLinearWeight(sub, afterMains) > 0;
+    }
+
+    // ==================== Exact Dynamic Programming Core ====================
+
+    function buildOptionsForDisc(mainStat, afterMains, upgradeBudget, maxTotalCR, maxTotalPEN, hasPen) {
+        const options = [];
+        const maxPerDisc = 1 + upgradeBudget;
+        const penLimit = hasPen ? Math.min(maxPerDisc, maxTotalPEN) : 0;
+        const crLimit = (mainStat === MS.CritRate) ? 0 : Math.min(maxPerDisc, maxTotalCR);
+        const cdLimit = (mainStat === MS.CritDamage) ? 0 : maxPerDisc;
+
+        const linearCandidates = getEligibleLinearSubstats(mainStat, afterMains);
+
+        for (let c = 0; c <= crLimit; c++) {
+            for (let k = 0; k <= cdLimit; k++) {
+                for (let pn = 0; pn <= penLimit; pn++) {
+                    const usedSlots = (c > 0 ? 1 : 0) + (k > 0 ? 1 : 0) + (pn > 0 ? 1 : 0);
+                    const usedUpgs = (c > 1 ? c - 1 : 0) + (k > 1 ? k - 1 : 0) + (pn > 1 ? pn - 1 : 0);
+                    if (usedUpgs > upgradeBudget) continue;
+
+                    const remSlots = 4 - usedSlots;
+                    const remUpgs = upgradeBudget - usedUpgs;
+
+                    const rollPairs = [];
+                    if (c > 0) rollPairs.push([SUB.CritRate, c]);
+                    if (k > 0) rollPairs.push([SUB.CritDamage, k]);
+                    if (pn > 0) rollPairs.push([SUB.PEN, pn]);
+
+                    let linearGain = 0;
+                    for (let i = 0; i < remSlots; i++) {
+                        const cand = linearCandidates[i];
+                        const rolls = 1 + (i === 0 ? remUpgs : 0);
+                        rollPairs.push([cand.sub, rolls]);
+                        linearGain += rolls * cand.weight;
+                    }
+
+                    options.push({
+                        crRolls: c,
+                        cdRolls: k,
+                        penRolls: pn,
+                        linearGain: linearGain,
+                        rollPairs: rollPairs
+                    });
+                }
+            }
+        }
+        return options;
+    }
+
+    function solveDP(basePlayer, mains, upgradeBudget) {
+        const n = mains.length;
+        const maxPerDisc = 1 + upgradeBudget;
+
+        const afterMains = copyPlayer(basePlayer);
+        for (let i = 0; i < n; i++) {
+            applyMainStat(afterMains, mains[i]);
+        }
+
+        const hasPen = (afterMains.scaling !== 'Rupture');
+        const effectiveCR = afterMains.critRate + afterMains.combatCritRate;
+        const maxCR = (effectiveCR >= 100.0)
+            ? 0
+            : Math.min(n * maxPerDisc, Math.max(0, Math.ceil(((100.0 - effectiveCR) / ROLLS.CritRate) - 1e-12)));
+        const maxCD = n * maxPerDisc;
+
+        let maxPEN = 0;
+        if (hasPen) {
+            const ignore = Math.min(Math.max(afterMains.defReduction, 0), 100);
+            const penRatio = Math.min(Math.max(afterMains.penRatio, 0), 100);
+            const effDefAfterMains = Math.max(
+                0,
+                (afterMains.enemyDef * ((100 - ignore) / 100) * (1 - penRatio / 100)) - afterMains.pen
+            );
+            maxPEN = Math.min(n * maxPerDisc, Math.max(0, Math.ceil((effDefAfterMains / ROLLS.PEN) - 1e-12)));
+        }
+
+        const stridePEN = maxPEN + 1;
+        const strideCD = (maxCD + 1) * stridePEN;
+        const totalStates = (maxCR + 1) * strideCD;
+
+        let dp = new Float64Array(totalStates);
+        dp.fill(-Infinity);
+        dp[0] = 0.0;
+
+        let nextDp = new Float64Array(totalStates);
+        const choiceIdx = new Int16Array(n * totalStates);
+        choiceIdx.fill(-1);
+
+        const allOptions = new Array(n);
+        let currMaxCR = 0;
+        let currMaxCD = 0;
+        let currMaxPEN = 0;
+
+        for (let d = 0; d < n; d++) {
+            const opts = buildOptionsForDisc(mains[d], afterMains, upgradeBudget, maxCR, maxPEN, hasPen);
+            allOptions[d] = opts;
+
+            const optLen = opts.length;
+            const optCR = new Int32Array(optLen);
+            const optCD = new Int32Array(optLen);
+            const optPEN = new Int32Array(optLen);
+            const optOffset = new Int32Array(optLen);
+            const optGain = new Float64Array(optLen);
+
+            let stepMaxCR = 0;
+            let stepMaxCD = 0;
+            let stepMaxPEN = 0;
+
+            for (let idx = 0; idx < optLen; idx++) {
+                const o = opts[idx];
+                optCR[idx] = o.crRolls;
+                optCD[idx] = o.cdRolls;
+                optPEN[idx] = o.penRolls;
+                optOffset[idx] = o.crRolls * strideCD + o.cdRolls * stridePEN + o.penRolls;
+                optGain[idx] = o.linearGain;
+
+                if (o.crRolls > stepMaxCR) stepMaxCR = o.crRolls;
+                if (o.cdRolls > stepMaxCD) stepMaxCD = o.cdRolls;
+                if (o.penRolls > stepMaxPEN) stepMaxPEN = o.penRolls;
+            }
+
+            nextDp.fill(-Infinity);
+            const dBase = d * totalStates;
+
+            for (let cr = 0; cr <= currMaxCR; cr++) {
+                const crOff = cr * strideCD;
+                for (let cd = 0; cd <= currMaxCD; cd++) {
+                    const cdOff = crOff + cd * stridePEN;
+                    for (let pn = 0; pn <= currMaxPEN; pn++) {
+                        const pos = cdOff + pn;
+                        const baseVal = dp[pos];
+                        if (baseVal === -Infinity) continue;
+
+                        for (let idx = 0; idx < optLen; idx++) {
+                            const ncr = cr + optCR[idx];
+                            if (ncr > maxCR) continue;
+                            const ncd = cd + optCD[idx];
+                            if (ncd > maxCD) continue;
+                            const npn = pn + optPEN[idx];
+                            if (npn > maxPEN) continue;
+
+                            const candVal = baseVal + optGain[idx];
+                            const nextPos = pos + optOffset[idx];
+                            if (candVal > nextDp[nextPos]) {
+                                nextDp[nextPos] = candVal;
+                                choiceIdx[dBase + nextPos] = idx;
+                            }
+                        }
+                    }
+                }
+            }
+
+            const tmp = dp;
+            dp = nextDp;
+            nextDp = tmp;
+
+            currMaxCR = Math.min(maxCR, currMaxCR + stepMaxCR);
+            currMaxCD = Math.min(maxCD, currMaxCD + stepMaxCD);
+            currMaxPEN = Math.min(maxPEN, currMaxPEN + stepMaxPEN);
+        }
+
+        // Evaluate all reachable (totalCR, totalCD, totalPEN) endpoints using exact damage math
+        let bestDamage = -Infinity;
+        let bestCR = 0;
+        let bestCD = 0;
+        let bestPEN = 0;
+
+        const evalPlayer = copyPlayer(afterMains);
+        for (let cr = 0; cr <= currMaxCR; cr++) {
+            const crOff = cr * strideCD;
+            for (let cd = 0; cd <= currMaxCD; cd++) {
+                const cdOff = crOff + cd * stridePEN;
+                for (let pn = 0; pn <= currMaxPEN; pn++) {
+                    const linearGain = dp[cdOff + pn];
+                    if (linearGain === -Infinity) continue;
+
+                    resetMutableStats(evalPlayer, afterMains);
+                    evalPlayer.critRate += ROLLS.CritRate * cr;
+                    evalPlayer.critDamage += ROLLS.CritDamage * cd;
+                    evalPlayer.pen += ROLLS.PEN * pn;
+                    applyLinearGain(evalPlayer, linearGain);
+
+                    const dmg = computeDamageBreakdown(evalPlayer).avg;
+                    if (dmg > bestDamage) {
+                        bestDamage = dmg;
+                        bestCR = cr;
+                        bestCD = cd;
+                        bestPEN = pn;
+                    }
+                }
+            }
+        }
+
+        // Backtrack chosen discs and apply exact substats + roll counts
+        const chosenOptions = new Array(n);
+        let cr = bestCR;
+        let cd = bestCD;
+        let pn = bestPEN;
+        for (let d = n - 1; d >= 0; d--) {
+            const pos = cr * strideCD + cd * stridePEN + pn;
+            const idx = choiceIdx[d * totalStates + pos];
+            const opt = allOptions[d][idx];
+            chosenOptions[d] = opt;
+            cr -= opt.crRolls;
+            cd -= opt.cdRolls;
+            pn -= opt.penRolls;
+        }
+
+        const finalPlayer = copyPlayer(basePlayer);
+        const totalRolls = {
+            HP: 0, FlatHP: 0,
+            Attack: 0, FlatAttack: 0,
+            Defense: 0, FlatDefense: 0,
+            CritRate: 0, CritDamage: 0,
+            PEN: 0, AnomalyProficiency: 0
+        };
+
+        const discDetails = new Array(n);
+        for (let d = 0; d < n; d++) {
+            applyMainStat(finalPlayer, mains[d]);
+            const pairs = chosenOptions[d].rollPairs;
+            const subList = [];
+            for (let i = 0; i < pairs.length; i++) {
+                const sub = pairs[i][0];
+                const rolls = pairs[i][1];
+                applySubStatRolls(finalPlayer, sub, rolls);
+                totalRolls[sub] += rolls;
+                subList.push({ sub: sub, rolls: rolls });
+            }
+            discDetails[d] = {
+                slot: d + 1,
+                mainStat: mains[d],
+                substats: subList
+            };
+        }
+
+        const dmgBreakdown = computeDamageBreakdown(finalPlayer);
+        const usefulSubs = {};
+        const allSubs = Object.values(SUB);
+        for (let i = 0; i < allSubs.length; i++) {
+            const s = allSubs[i];
+            usefulSubs[s] = isSubUseful(s, afterMains, hasPen, maxCR, maxPEN, dmgBreakdown.avg);
+        }
+        for (let d = 0; d < n; d++) {
+            const subs = discDetails[d].substats;
+            for (let i = 0; i < subs.length; i++) {
+                subs[i].isFiller = !usefulSubs[subs[i].sub];
+            }
+        }
+
+        return {
+            dmg: dmgBreakdown.avg,
+            breakdown: dmgBreakdown,
+            mains: mains,
+            player: finalPlayer,
+            totalRolls: totalRolls,
+            usefulSubs: usefulSubs,
+            discDetails: discDetails
+        };
+    }
+
+    function getDisc4Candidates(sc) {
+        switch (sc) {
+            case 'Attack': return [MS.Attack, MS.CritRate, MS.CritDamage];
+            case 'HP': return [MS.HP, MS.CritRate, MS.CritDamage];
+            case 'Defense': return [MS.Defense, MS.CritRate, MS.CritDamage];
+            case 'Rupture': return [MS.HP, MS.Attack, MS.CritRate, MS.CritDamage];
+            default: return [];
+        }
+    }
+
+    function getDisc5Candidates(sc) {
+        switch (sc) {
+            case 'Attack': return [MS.Attack, MS.PENRatio, MS.DamageBonus];
+            case 'HP': return [MS.HP, MS.PENRatio, MS.DamageBonus];
+            case 'Defense': return [MS.Defense, MS.PENRatio, MS.DamageBonus];
+            case 'Rupture': return [MS.HP, MS.Attack, MS.DamageBonus];
+            default: return [];
+        }
+    }
+
+    function getDisc6Candidates(sc) {
+        switch (sc) {
+            case 'Attack': return [MS.Attack];
+            case 'HP': return [MS.HP];
+            case 'Defense': return [MS.Defense];
+            case 'Rupture': return [MS.HP, MS.Attack];
+            default: return [];
+        }
+    }
+
+    function SetMainStats(basePlayer, addRolls, mainLocks) {
+        const disc4List = (mainLocks && mainLocks.slot4 && mainLocks.slot4 !== 'Auto')
+            ? [mainLocks.slot4]
+            : getDisc4Candidates(basePlayer.scaling);
+        const disc5List = (mainLocks && mainLocks.slot5 && mainLocks.slot5 !== 'Auto')
+            ? [mainLocks.slot5]
+            : getDisc5Candidates(basePlayer.scaling);
+        const disc6List = (mainLocks && mainLocks.slot6 && mainLocks.slot6 !== 'Auto')
+            ? [mainLocks.slot6]
+            : getDisc6Candidates(basePlayer.scaling);
+
+        let bestResult = null;
+        let highestDamage = -Infinity;
+
+        for (let i4 = 0; i4 < disc4List.length; i4++) {
+            for (let i5 = 0; i5 < disc5List.length; i5++) {
+                for (let i6 = 0; i6 < disc6List.length; i6++) {
+                    const mains = [
+                        MS.FlatHP,
+                        MS.FlatAttack,
+                        MS.FlatDefense,
+                        disc4List[i4],
+                        disc5List[i5],
+                        disc6List[i6]
+                    ];
+                    const res = solveDP(basePlayer, mains, addRolls);
+                    if (res.dmg > highestDamage) {
+                        highestDamage = res.dmg;
+                        bestResult = res;
+                    }
+                }
+            }
+        }
+        return bestResult;
+    }
+
+    self.onmessage = function(e) {
+        const { player, startLines, mainLocks } = e.data;
+
+        const rawLvl = Number(player.characterLevel);
+        const lvl = (Number.isFinite(rawLvl) && rawLvl > 0) ? rawLvl : 60;
+        player.levelFactor = Math.round((0.155 * lvl * lvl) + (3.15 * lvl) + 46.7);
+
+        const result = SetMainStats(player, startLines, mainLocks);
+        if (!result) {
+            self.postMessage(null);
+            return;
+        }
+
+        const fp = result.player;
+        const tr = result.totalRolls;
+        const us = result.usefulSubs;
+
+        const rolls = Object.values(SUB).map(sub => ({
+            sub,
+            count: tr[sub],
+            useful: us[sub]
+        }));
+
+        const stats = computeStatTotals(fp);
+
+        const payload = {
+            scaling: fp.scaling,
+            main4: result.mains[3],
+            main5: result.mains[4],
+            main6: result.mains[5],
+            subs: rolls,
+            discDetails: result.discDetails,
+            dmgNormal: result.breakdown.normal,
+            dmgCrit: result.breakdown.crit,
+            dmgAvg: result.breakdown.avg,
+            menuStats: {
+                hp: stats.menuHp,
+                atk: stats.menuAtk,
+                def: stats.menuDef,
+                critRate: fp.critRate,
+                critDamage: fp.critDamage,
+                penRatio: fp.penRatio,
+                pen: fp.pen,
+                damageBonus: fp.damageBonus,
+                sDmg: 0,
+                totalSF: stats.menuSF
+            },
+            combatStats: {
+                hp: stats.finalHp,
+                atk: stats.finalAtk,
+                def: stats.menuDef,
+                critRate: fp.critRate + fp.combatCritRate,
+                critDamage: fp.critDamage + fp.combatCritDmg,
+                penRatio: fp.penRatio,
+                pen: fp.pen,
+                damageBonus: fp.damageBonus,
+                sDmg: fp.combatSheerDmg,
+                totalSF: stats.finalSF
+            }
+        };
+        self.postMessage(payload);
+    };
+</script>
+
+<!-- MAIN UI & CONTROLLER SCRIPT -->
+<script>
+    const STORAGE_KEY = 'zzz_optimal_distribution_calc_v1';
+    const NUMERIC_INPUT_IDS = [
+        'charLevel', 'baseHp', 'baseDefense', 'baseAttack',
+        'extAtkPct', 'extFlatAtk', 'extHpPct', 'extFlatHp', 'extDefPct', 'extFlatDef',
+        'baseCritRate', 'baseCritDmg', 'extDmgBonus', 'skillMultiplier', 'basePenRatio', 'basePen',
+        'combatAtkPct', 'combatFlatAtk', 'combatHpPct', 'combatFlatHp',
+        'combatCritRate', 'combatCritDmg', 'combatSheerForce', 'combatSheerDmg',
+        'enemyDef', 'defReduction', 'enemyRes', 'dmgTaken', 'stunMult'
+    ];
+    const FIELD_IDS = [
+        'scalingType', ...NUMERIC_INPUT_IDS,
+        'startLines', 'lockSlot4', 'lockSlot5', 'lockSlot6'
+    ];
+
+    const DEFAULT_VALUES = {};
+    let currentWorker = null;
+    let currentWorkerUrl = null;
+    let hasCalculated = false;
+
+    const MAIN_STAT_ZZZ_TEXT = {
+        'HP': 'HP%', 'FlatHP': 'HP',
+        'Attack': 'ATK%', 'FlatAttack': 'ATK',
+        'Defense': 'DEF%', 'FlatDefense': 'DEF',
+        'CritRate': 'Crit Rate', 'CritDamage': 'Crit DMG',
+        'AnomalyProficiency': 'Anomaly Prof', 'AnomalyMastery': 'Anomaly Mastery',
+        'PENRatio': 'PEN Ratio', 'DamageBonus': 'DMG Bonus',
+        'EnergyRegen': 'Energy Regen', 'Impact': 'Impact'
+    };
+
+    const DISC_RING_OVERRIDES = {
+        'DamageBonus': 'DMG<br>Bonus'
+    };
+
+    const MAIN_STAT_VALUES = {
+        'HP': '30%', 'FlatHP': '2,200',
+        'Attack': '30%', 'FlatAttack': '316',
+        'Defense': '48%', 'FlatDefense': '184',
+        'CritRate': '24%', 'CritDamage': '48%',
+        'AnomalyProficiency': '92', 'AnomalyMastery': '30%',
+        'PENRatio': '24%', 'DamageBonus': '30%',
+        'EnergyRegen': '60%', 'Impact': '18%'
+    };
+
+    const SUB_STAT_ZZZ = {
+        'HP': { label: 'HP%', step: 3, isPct: true },
+        'FlatHP': { label: 'HP', step: 112, isPct: false },
+        'Attack': { label: 'ATK%', step: 3, isPct: true },
+        'FlatAttack': { label: 'ATK', step: 19, isPct: false },
+        'Defense': { label: 'DEF%', step: 4.8, isPct: true },
+        'FlatDefense': { label: 'DEF', step: 15, isPct: false },
+        'CritRate': { label: 'Crit Rate', step: 2.4, isPct: true },
+        'CritDamage': { label: 'Crit DMG', step: 4.8, isPct: true },
+        'PEN': { label: 'PEN', step: 9, isPct: false },
+        'AnomalyProficiency': { label: 'Anomaly Prof', step: 9, isPct: false }
+    };
+
+    const SUB_PRIORITY_LABELS = {
+        HP: 'HP %', FlatHP: 'Flat HP',
+        Attack: 'Attack %', FlatAttack: 'Flat Attack',
+        Defense: 'Def %', FlatDefense: 'Flat Def',
+        CritRate: 'Crit Rate', CritDamage: 'Crit DMG',
+        PEN: 'Flat PEN', AnomalyProficiency: 'Anomaly Prof'
+    };
+
+    function formatInt(n) {
+        return Math.round(n).toLocaleString();
+    }
+
+    function formatSubstatValue(sub, rolls) {
+        const info = SUB_STAT_ZZZ[sub];
+        if (!info) return '';
+        const clean = Number((info.step * rolls).toFixed(1));
+        return info.isPct ? (clean + '%') : clean.toLocaleString();
+    }
+
+    // --- MATH EXPRESSION PARSER ---
+    function evaluateMathString(raw) {
+        const trimmed = raw.trim();
+        if (!trimmed) return { valid: true, value: 0 };
+
+        if (/[^0-9.+\-*/()\s]/.test(trimmed)) {
+            return { valid: false, value: 0 };
+        }
+        if (/[\d.]\s+[\d.]/.test(trimmed)) {
+            return { valid: false, value: 0 };
+        }
+
+        const str = trimmed.replace(/\s+/g, '');
+        const tokens = [];
+        let i = 0;
+        while (i < str.length) {
+            const ch = str[i];
+            if ('+-*/()'.includes(ch)) {
+                tokens.push(ch);
+                i++;
+            } else {
+                const match = str.slice(i).match(/^(?:\d+\.?\d*|\.\d+)/);
+                if (!match) return { valid: false, value: 0 };
+                tokens.push(match[0]);
+                i += match[0].length;
+            }
+        }
+
+        let pos = 0;
+        let valid = true;
+        const peek = () => tokens[pos];
+        const consume = () => tokens[pos++];
+
+        function parseExpression() {
+            let val = parseTerm();
+            while (valid && pos < tokens.length && (peek() === '+' || peek() === '-')) {
+                const op = consume();
+                const right = parseTerm();
+                val = (op === '+') ? (val + right) : (val - right);
+            }
+            return val;
+        }
+
+        function parseTerm() {
+            let val = parseFactor();
+            while (valid && pos < tokens.length && (peek() === '*' || peek() === '/')) {
+                const op = consume();
+                const right = parseFactor();
+                if (op === '*') {
+                    val *= right;
+                } else {
+                    if (right === 0) {
+                        valid = false;
+                        return 0;
+                    }
+                    val /= right;
+                }
+            }
+            return val;
+        }
+
+        function parseFactor() {
+            if (!valid || pos >= tokens.length) {
+                valid = false;
+                return 0;
+            }
+            const t = peek();
+            if (t === '+') {
+                consume();
+                return parseFactor();
+            }
+            if (t === '-') {
+                consume();
+                return -parseFactor();
+            }
+            if (t === '(') {
+                consume();
+                const val = parseExpression();
+                if (peek() !== ')') {
+                    valid = false;
+                    return 0;
+                }
+                consume();
+                return val;
+            }
+            if (t === '*' || t === '/' || t === ')') {
+                valid = false;
+                return 0;
+            }
+            consume();
+            const num = Number(t);
+            if (!Number.isFinite(num)) {
+                valid = false;
+                return 0;
+            }
+            return num;
+        }
+
+        const result = parseExpression();
+        if (!valid || pos !== tokens.length || !Number.isFinite(result)) {
+            return { valid: false, value: 0 };
+        }
+        return { valid: true, value: result };
+    }
+
+    function parseVal(id) {
+        const el = document.getElementById(id);
+        if (!el) return { valid: true, value: 0 };
+        const res = evaluateMathString(el.value);
+        if (!res.valid) {
+            el.classList.add('input-invalid');
+        } else {
+            el.classList.remove('input-invalid');
+        }
+        return res;
+    }
+
+    function showError(message) {
+        const banner = document.getElementById('errorBanner');
+        if (!message) {
+            banner.textContent = '';
+            banner.classList.add('hidden');
+        } else {
+            banner.textContent = message;
+            banner.classList.remove('hidden');
+        }
+    }
+
+    // --- MAIN STAT LOCK OPTIONS ---
+    function getLockOptions(scaling) {
+        const primary = scaling === 'HP'
+            ? [{ val: 'HP', label: 'HP%' }]
+            : scaling === 'Defense'
+                ? [{ val: 'Defense', label: 'DEF%' }]
+                : scaling === 'Rupture'
+                    ? [{ val: 'HP', label: 'HP%' }, { val: 'Attack', label: 'ATK%' }]
+                    : [{ val: 'Attack', label: 'ATK%' }];
+
+        const slot4 = [
+            { val: 'Auto', label: 'Auto' },
+            ...primary,
+            { val: 'CritRate', label: 'Crit Rate' },
+            { val: 'CritDamage', label: 'Crit DMG' },
+            { val: 'AnomalyProficiency', label: 'Anomaly Prof' }
+        ];
+
+        const slot5 = [
+            { val: 'Auto', label: 'Auto' },
+            ...primary,
+            ...(scaling !== 'Rupture' ? [{ val: 'PENRatio', label: 'PEN Ratio' }] : []),
+            { val: 'DamageBonus', label: 'DMG Bonus' }
+        ];
+
+        const slot6 = [
+            { val: 'Auto', label: 'Auto' },
+            ...primary,
+            { val: 'EnergyRegen', label: 'Energy Regen' },
+            { val: 'Impact', label: 'Impact' },
+            { val: 'AnomalyMastery', label: 'Anomaly Mastery' }
+        ];
+
+        return { slot4, slot5, slot6 };
+    }
+
+    function populateSelect(selectId, options) {
+        const sel = document.getElementById(selectId);
+        const prev = sel.value;
+        sel.innerHTML = '';
+        options.forEach(opt => {
+            const o = document.createElement('option');
+            o.value = opt.val;
+            o.textContent = opt.label;
+            sel.appendChild(o);
+        });
+        if (options.some(o => o.val === prev)) {
+            sel.value = prev;
+        } else {
+            sel.value = 'Auto';
+        }
+    }
+
+    function updateLockOptions(scaling) {
+        const opts = getLockOptions(scaling);
+        populateSelect('lockSlot4', opts.slot4);
+        populateSelect('lockSlot5', opts.slot5);
+        populateSelect('lockSlot6', opts.slot6);
+    }
+
+    // --- UI VISIBILITY & BLANK STATE ---
+    function updateUI() {
+        const type = document.getElementById('scalingType').value;
+        const rows = {
+            atk: document.getElementById('row-atk'),
+            hp: document.getElementById('row-hp'),
+            def: document.getElementById('row-def'),
+            crit: document.getElementById('row-crit'),
+            pen: document.getElementById('row-pen'),
+            combatAtk: document.getElementById('row-combat-atk'),
+            combatHp: document.getElementById('row-combat-hp'),
+            combatCrit: document.getElementById('row-combat-crit'),
+            combatSheer: document.getElementById('row-combat-sheer')
+        };
+        Object.values(rows).forEach(el => el.classList.remove('hidden'));
+
+        if (type === 'Attack') {
+            rows.hp.classList.add('hidden');
+            rows.def.classList.add('hidden');
+            rows.combatHp.classList.add('hidden');
+            rows.combatSheer.classList.add('hidden');
+        } else if (type === 'HP') {
+            rows.atk.classList.add('hidden');
+            rows.def.classList.add('hidden');
+            rows.combatAtk.classList.add('hidden');
+            rows.combatSheer.classList.add('hidden');
+        } else if (type === 'Defense') {
+            rows.atk.classList.add('hidden');
+            rows.hp.classList.add('hidden');
+            rows.combatAtk.classList.add('hidden');
+            rows.combatHp.classList.add('hidden');
+            rows.combatSheer.classList.add('hidden');
+        } else if (type === 'Rupture') {
+            rows.def.classList.add('hidden');
+            rows.pen.classList.add('hidden');
+        }
+
+        updateLockOptions(type);
+
+        if (!hasCalculated) {
+            renderBlankResults();
+        }
+    }
+
+    function renderStatsTables(menuStats, combatStats, scaling) {
+        const pct = n => n.toFixed(1) + '%';
+
+        const rows = [
+            { label: 'HP', k: 'hp', fmt: formatInt },
+            { label: 'Attack', k: 'atk', fmt: formatInt },
+            { label: 'Defense', k: 'def', fmt: formatInt },
+            { label: 'Crit Rate', k: 'critRate', fmt: pct },
+            { label: 'Crit DMG', k: 'critDamage', fmt: pct },
+            { label: 'PEN Ratio', k: 'penRatio', fmt: pct },
+            { label: 'PEN', k: 'pen', fmt: formatInt },
+            { label: 'DMG Bonus', k: 'damageBonus', fmt: pct }
+        ];
+
+        if (scaling === 'Rupture') {
+            rows.push(
+                { label: 'Sheer Force', k: 'totalSF', fmt: formatInt },
+                { label: 'Sheer DMG%', k: 'sDmg', fmt: pct }
+            );
+        }
+
+        const renderTable = (targetId, dataSource) => {
+            const container = document.getElementById(targetId);
+            container.innerHTML = '';
+            rows.forEach(r => {
+                const val = (dataSource[r.k] !== undefined) ? dataSource[r.k] : 0;
+                const div = document.createElement('div');
+                div.className = 'agent-stat-row';
+
+                const labelSpan = document.createElement('span');
+                labelSpan.textContent = r.label;
+                const valSpan = document.createElement('span');
+                valSpan.className = 'val-col';
+                valSpan.textContent = r.fmt(val);
+
+                div.appendChild(labelSpan);
+                div.appendChild(valSpan);
+                container.appendChild(div);
+            });
+        };
+
+        renderTable('menuStatsBody', menuStats);
+        renderTable('combatStatsBody', combatStats);
+    }
+
+    function renderBlankResults() {
+        const scaling = document.getElementById('scalingType').value;
+        document.getElementById('resNormalDmg').textContent = '0';
+        document.getElementById('resCritDmg').textContent = '0';
+        document.getElementById('resAvgDmg').textContent = '0';
+
+        const zeroStats = {
+            hp: 0, atk: 0, def: 0,
+            critRate: 0, critDamage: 0,
+            penRatio: 0, pen: 0,
+            damageBonus: 0, sDmg: 0, totalSF: 0
+        };
+        renderStatsTables(zeroStats, zeroStats, scaling);
+
+        document.getElementById('recommendationsSection').classList.add('hidden');
+        document.getElementById('preRunNotice').classList.remove('hidden');
+    }
+
+    // --- PERSISTENCE (localStorage) ---
+    function captureDefaults() {
+        FIELD_IDS.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) DEFAULT_VALUES[id] = el.value;
+        });
+    }
+
+    function saveToStorage() {
+        try {
+            const data = {};
+            FIELD_IDS.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) data[id] = el.value;
+            });
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+        } catch (e) {
+            // Ignore storage errors
+        }
+    }
+
+    function loadFromStorage() {
+        try {
+            const raw = localStorage.getItem(STORAGE_KEY);
+            if (!raw) {
+                updateUI();
+                return;
+            }
+            const data = JSON.parse(raw);
+
+            if (data.scalingType) {
+                const scalingEl = document.getElementById('scalingType');
+                if ([...scalingEl.options].some(o => o.value === data.scalingType)) {
+                    scalingEl.value = data.scalingType;
+                }
+            }
+            updateUI(); // Populates slot lock options for restored scalingType
+            FIELD_IDS.forEach(id => {
+                if (id === 'scalingType') return;
+                const el = document.getElementById(id);
+                if (el && data[id] !== undefined) {
+                    if (el.tagName === 'SELECT') {
+                        if ([...el.options].some(o => o.value === data[id])) {
+                            el.value = data[id];
+                        }
+                    } else {
+                        el.value = (data[id] === '') ? '0' : data[id];
+                    }
+                }
+            });
+        } catch (e) {
+            updateUI();
+        }
+    }
+
+    function resetInputs() {
+        try {
+            localStorage.removeItem(STORAGE_KEY);
+        } catch (e) {
+            // Ignore storage errors
+        }
+
+        if (DEFAULT_VALUES.scalingType !== undefined) {
+            document.getElementById('scalingType').value = DEFAULT_VALUES.scalingType;
+        }
+        hasCalculated = false;
+        updateUI();
+
+        FIELD_IDS.forEach(id => {
+            if (id === 'scalingType') return;
+            const el = document.getElementById(id);
+            if (el && DEFAULT_VALUES[id] !== undefined) {
+                el.value = DEFAULT_VALUES[id];
+                el.classList.remove('input-invalid');
+            }
+        });
+
+        cleanupWorker();
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('output').style.opacity = '1';
+        showError('');
+    }
+
+    // --- WORKER LIFECYCLE ---
+    function cleanupWorker() {
+        if (currentWorker) {
+            currentWorker.terminate();
+            currentWorker = null;
+        }
+        if (currentWorkerUrl) {
+            URL.revokeObjectURL(currentWorkerUrl);
+            currentWorkerUrl = null;
+        }
+    }
+
+    function getInputs() {
+        let allValid = true;
+        const vals = {};
+
+        NUMERIC_INPUT_IDS.forEach(id => {
+            const parsed = parseVal(id);
+            if (!parsed.valid) allValid = false;
+            vals[id] = parsed.value;
+        });
+
+        const p = {
+            scaling: document.getElementById('scalingType').value,
+            characterLevel: vals.charLevel,
+            baseHp: vals.baseHp,
+            baseAttack: vals.baseAttack,
+            baseDefense: vals.baseDefense,
+            atkPct: vals.extAtkPct,
+            flatAttack: vals.extFlatAtk,
+            hpPct: vals.extHpPct,
+            flatHp: vals.extFlatHp,
+            defPct: vals.extDefPct,
+            flatDefense: vals.extFlatDef,
+            critRate: vals.baseCritRate,
+            critDamage: vals.baseCritDmg,
+            damageBonus: vals.extDmgBonus,
+            skillMultiplier: vals.skillMultiplier,
+            penRatio: vals.basePenRatio,
+            pen: vals.basePen,
+            combatAtkPct: vals.combatAtkPct,
+            combatFlatAtk: vals.combatFlatAtk,
+            combatHpPct: vals.combatHpPct,
+            combatFlatHp: vals.combatFlatHp,
+            combatCritRate: vals.combatCritRate,
+            combatCritDmg: vals.combatCritDmg,
+            combatSheerForce: vals.combatSheerForce,
+            combatSheerDmg: vals.combatSheerDmg,
+            enemyDef: vals.enemyDef,
+            defReduction: vals.defReduction,
+            enemyRes: vals.enemyRes,
+            damageTaken: vals.dmgTaken,
+            stunMultiplier: vals.stunMult,
+            anomalyProficiency: 0
+        };
+
+        const startLines = parseInt(document.getElementById('startLines').value, 10);
+        const mainLocks = {
+            slot4: document.getElementById('lockSlot4').value || 'Auto',
+            slot5: document.getElementById('lockSlot5').value || 'Auto',
+            slot6: document.getElementById('lockSlot6').value || 'Auto'
+        };
+
+        return { valid: allValid, payload: { player: p, startLines, mainLocks } };
+    }
+
+    function optimize() {
+        const input = getInputs();
+        if (!input.valid) {
+            showError('Invalid math expression in highlighted field(s). Please fix before calculating.');
+            return;
+        }
+        showError('');
+        saveToStorage();
+
+        const loading = document.getElementById('loading');
+        const output = document.getElementById('output');
+        loading.style.display = 'block';
+        output.style.opacity = '0.4';
+
+        cleanupWorker();
+
+        const workerSource = document.getElementById('worker-code').textContent;
+        const blob = new Blob([workerSource], { type: 'application/javascript' });
+        currentWorkerUrl = URL.createObjectURL(blob);
+        currentWorker = new Worker(currentWorkerUrl);
+
+        currentWorker.onmessage = function(e) {
+            const data = e.data;
+            cleanupWorker();
+            loading.style.display = 'none';
+            output.style.opacity = '1';
+            if (data) {
+                hasCalculated = true;
+                displayResults(data);
+            } else {
+                showError('Optimization returned no result. Check your input values.');
+            }
+        };
+
+        currentWorker.onerror = function(err) {
+            cleanupWorker();
+            loading.style.display = 'none';
+            output.style.opacity = '1';
+            showError('Optimizer error: ' + (err && err.message ? err.message : 'Unexpected failure.'));
+        };
+
+        currentWorker.postMessage(input.payload);
+    }
+
+    function displayResults(res) {
+        document.getElementById('resNormalDmg').textContent = formatInt(res.dmgNormal);
+        document.getElementById('resCritDmg').textContent = formatInt(res.dmgCrit);
+        document.getElementById('resAvgDmg').textContent = formatInt(res.dmgAvg);
+
+        renderStatsTables(res.menuStats, res.combatStats, res.scaling);
+
+        document.getElementById('preRunNotice').classList.add('hidden');
+        document.getElementById('recommendationsSection').classList.remove('hidden');
+
+        document.getElementById('slot4Rec').innerHTML = DISC_RING_OVERRIDES[res.main4] || MAIN_STAT_ZZZ_TEXT[res.main4] || res.main4;
+        document.getElementById('slot5Rec').innerHTML = DISC_RING_OVERRIDES[res.main5] || MAIN_STAT_ZZZ_TEXT[res.main5] || res.main5;
+        document.getElementById('slot6Rec').innerHTML = DISC_RING_OVERRIDES[res.main6] || MAIN_STAT_ZZZ_TEXT[res.main6] || res.main6;
+
+        // Substat Priority (exclude 0-weight filler substats)
+        const barsContainer = document.getElementById('substatBars');
+        barsContainer.innerHTML = '';
+
+        const subData = res.subs
+            .filter(s => s.count > 0 && s.useful)
+            .map(s => ({ label: SUB_PRIORITY_LABELS[s.sub] || s.sub, count: s.count }))
+            .sort((a, b) => b.count - a.count);
+
+        if (subData.length === 0) {
+            const emptyMsg = document.createElement('div');
+            emptyMsg.className = 'notice';
+            emptyMsg.textContent = 'No substats affect damage with current settings (0 damage).';
+            barsContainer.appendChild(emptyMsg);
+        } else {
+            const max = subData[0].count;
+            subData.forEach(s => {
+                const width = (s.count / max) * 100;
+                const row = document.createElement('div');
+                row.className = 'bar-row';
+
+                const labelEl = document.createElement('div');
+                labelEl.className = 'bar-label';
+                labelEl.textContent = s.label;
+
+                const trackEl = document.createElement('div');
+                trackEl.className = 'bar-track';
+                const fillEl = document.createElement('div');
+                fillEl.className = 'bar-fill';
+                fillEl.style.width = width + '%';
+                trackEl.appendChild(fillEl);
+
+                const valEl = document.createElement('div');
+                valEl.className = 'bar-val';
+                valEl.textContent = s.count;
+
+                row.appendChild(labelEl);
+                row.appendChild(trackEl);
+                row.appendChild(valEl);
+                barsContainer.appendChild(row);
+            });
+        }
+
+        // Individual Disc Substat Breakdown
+        const grid = document.getElementById('perDiscGrid');
+        grid.innerHTML = '';
+        if (Array.isArray(res.discDetails)) {
+            res.discDetails.forEach(disc => {
+                const card = document.createElement('div');
+                card.className = 'disc-card';
+
+                const header = document.createElement('div');
+                header.className = 'disc-card-header';
+
+                const slotEl = document.createElement('span');
+                slotEl.className = 'disc-card-slot';
+
+                const badgeEl = document.createElement('span');
+                badgeEl.className = 'disc-slot-badge';
+                badgeEl.textContent = disc.slot;
+                badgeEl.setAttribute('aria-hidden', 'true');
+
+                slotEl.appendChild(badgeEl);
+                slotEl.appendChild(document.createTextNode('Slot ' + disc.slot));
+
+                const levelEl = document.createElement('span');
+                levelEl.className = 'disc-card-level';
+                levelEl.textContent = 'Lv.15';
+
+                header.appendChild(slotEl);
+                header.appendChild(levelEl);
+                card.appendChild(header);
+
+                const mainRow = document.createElement('div');
+                mainRow.className = 'disc-card-main-row';
+
+                const mainNameEl = document.createElement('span');
+                mainNameEl.className = 'disc-main-name';
+                mainNameEl.textContent = MAIN_STAT_ZZZ_TEXT[disc.mainStat] || disc.mainStat;
+
+                const mainValEl = document.createElement('span');
+                mainValEl.className = 'disc-card-main';
+                mainValEl.textContent = MAIN_STAT_VALUES[disc.mainStat] || '';
+
+                mainRow.appendChild(mainNameEl);
+                mainRow.appendChild(mainValEl);
+                card.appendChild(mainRow);
+
+                const subList = document.createElement('div');
+                subList.className = 'disc-sub-list';
+
+                const sortedSubs = [...disc.substats].sort((a, b) => {
+                    if (a.isFiller !== b.isFiller) return a.isFiller ? 1 : -1;
+                    return b.rolls - a.rolls;
+                });
+
+                sortedSubs.forEach(item => {
+                    const row = document.createElement('div');
+                    row.className = 'disc-sub-row' + (item.isFiller ? ' filler' : '');
+
+                    const leftSpan = document.createElement('span');
+                    leftSpan.className = 'disc-sub-left';
+
+                    const nameSpan = document.createElement('span');
+                    nameSpan.textContent = item.isFiller
+                        ? 'Any (Filler)'
+                        : (SUB_STAT_ZZZ[item.sub] ? SUB_STAT_ZZZ[item.sub].label : item.sub);
+                    leftSpan.appendChild(nameSpan);
+
+                    const upgrades = Math.max(0, item.rolls - 1);
+                    if (upgrades > 0) {
+                        const plusSpan = document.createElement('span');
+                        plusSpan.className = 'disc-sub-plus';
+                        plusSpan.textContent = '+' + upgrades;
+                        leftSpan.appendChild(plusSpan);
+                    }
+
+                    const valSpan = document.createElement('span');
+                    valSpan.className = 'disc-sub-val';
+                    valSpan.textContent = item.isFiller
+                        ? '\u2014'
+                        : formatSubstatValue(item.sub, item.rolls);
+
+                    row.appendChild(leftSpan);
+                    row.appendChild(valSpan);
+                    subList.appendChild(row);
+                });
+
+                card.appendChild(subList);
+                grid.appendChild(card);
+            });
+        }
+    }
+
+    // --- INITIALIZATION & EVENT LISTENERS ---
+    window.addEventListener('DOMContentLoaded', () => {
+        captureDefaults();
+        loadFromStorage();
+
+        document.getElementById('scalingType').addEventListener('change', () => {
+            updateUI();
+            saveToStorage();
+        });
+
+        ['startLines', 'lockSlot4', 'lockSlot5', 'lockSlot6'].forEach(id => {
+            document.getElementById(id).addEventListener('change', saveToStorage);
+        });
+
+        NUMERIC_INPUT_IDS.forEach(id => {
+            const el = document.getElementById(id);
+            el.addEventListener('focus', () => {
+                if (el.value.trim() === '0') {
+                    el.value = '';
+                }
+            });
+            el.addEventListener('blur', () => {
+                if (el.value.trim() === '') {
+                    el.value = '0';
+                    parseVal(id);
+                    saveToStorage();
+                }
+            });
+            el.addEventListener('input', () => {
+                parseVal(id);
+                saveToStorage();
+            });
+            el.addEventListener('keydown', e => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    optimize();
+                }
+            });
+        });
+
+        document.getElementById('calculateBtn').addEventListener('click', optimize);
+        document.getElementById('resetBtn').addEventListener('click', resetInputs);
+    });
+</script>
+</body>
+</html>
